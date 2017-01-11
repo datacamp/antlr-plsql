@@ -203,13 +203,13 @@ alter_table_list_entry:
 			| OPEN_PAR_SYMBOL column_definition (COMMA_SYMBOL column_definition)* CLOSE_PAR_SYMBOL
 		)
 	| ADD_SYMBOL key_def
-	| ALTER_SYMBOL COLUMN_SYMBOL? column_internal_ref (SET_SYMBOL DEFAULT_SYMBOL signed_literal | DROP_SYMBOL DEFAULT_SYMBOL)
-	| CHANGE_SYMBOL COLUMN_SYMBOL? column_internal_ref field_spec (FIRST_SYMBOL | AFTER_SYMBOL identifier)?
-	| MODIFY_SYMBOL COLUMN_SYMBOL? column_internal_ref data_type attribute* (FIRST_SYMBOL | AFTER_SYMBOL identifier)?
+	| ALTER_SYMBOL COLUMN_SYMBOL? column_ref (SET_SYMBOL DEFAULT_SYMBOL signed_literal | DROP_SYMBOL DEFAULT_SYMBOL)
+	| CHANGE_SYMBOL COLUMN_SYMBOL? column_ref field_spec (FIRST_SYMBOL | AFTER_SYMBOL identifier)?
+	| MODIFY_SYMBOL COLUMN_SYMBOL? column_ref data_type attribute* (FIRST_SYMBOL | AFTER_SYMBOL identifier)?
 	| DROP_SYMBOL
 		(
 			(INDEX_SYMBOL | KEY_SYMBOL) column_ref
-			| COLUMN_SYMBOL? column_internal_ref
+			| COLUMN_SYMBOL? column_ref
 			| PRIMARY_SYMBOL KEY_SYMBOL
 			| FOREIGN_SYMBOL KEY_SYMBOL
 				(
@@ -863,7 +863,7 @@ select_item_list:
 
 select_item:
 	table_wild                              // MC originally had two uses of table_wild
-    | column_ref select_alis?
+    | column_ref select_alias?
 	| expression select_alias?
 ;
 
@@ -1743,31 +1743,8 @@ expression:
     | expression (LOGICAL_AND_OPERATOR | AND_SYMBOL) expression
     | NOT_SYMBOL expression
     | boolean_primary_expression
+    | predicate
 ;
-
-/* MC refactor expression to use left recursion
-expression:
-	logical_or_expression
-;
-
-logical_or_expression:
-	logical_xor_expression ((LOGICAL_OR_OPERATOR | OR_SYMBOL) logical_xor_expression)*
-;
-
-logical_xor_expression:
-	logical_and_expression (XOR_SYMBOL logical_and_expression)*
-;
-
-logical_and_expression:
-	logical_not_expression ((LOGICAL_AND_OPERATOR | AND_SYMBOL) logical_not_expression)*
-;
-
-logical_not_expression:
-	NOT_SYMBOL logical_not_expression
-	| boolean_primary_expression
-;
-
-*/
 
 boolean_primary_expression:
 	predicate
@@ -1778,20 +1755,20 @@ boolean_primary_expression:
 				| predicate
 			)
 	    	| (IS_SYMBOL NOT_SYMBOL? ( null_literal | FALSE_SYMBOL | TRUE_SYMBOL | UNKNOWN_SYMBOL))+
-		)*
+		)+
 ;
 
 predicate:
-	bitwise_or_expression
+	bitwise_expression
 		( 
 			NOT_SYMBOL?
 				(
-					BETWEEN_SYMBOL bitwise_or_expression AND_SYMBOL predicate
+					BETWEEN_SYMBOL bitwise_expression AND_SYMBOL predicate
 					| LIKE_SYMBOL unary_expression (ESCAPE_SYMBOL primary)?
-					| REGEXP_SYMBOL bitwise_or_expression
+					| REGEXP_SYMBOL bitwise_expression
 					| IN_SYMBOL predicate_in
 	    		)
-	    	| SOUNDS_SYMBOL LIKE_SYMBOL bitwise_or_expression
+	    	| SOUNDS_SYMBOL LIKE_SYMBOL bitwise_expression
 		)?
 ;
 
@@ -1801,62 +1778,23 @@ predicate_in:
 	| expression_list_with_parentheses
 ;
 
-bitwise_or_expression:
-      bitwise_or_expression (BITWISE_OR_OPERATOR) bitwise_or_expression
-    | bitwise_or_expression (BITWISE_AND_OPERATOR) bitwise_or_expression
-    | bitwise_or_expression (SHIFT_LEFT_OPERATOR | SHIFT_RIGHT_OPERATOR) bitwise_or_expression
-    | bitwise_or_expression (PLUS_OPERATOR | MINUS_OPERATOR) bitwise_or_expression
-    | bitwise_or_expression multiplication_operator bitwise_or_expression
-    | bitwise_or_expression BITWISE_XOR_OPERATOR  bitwise_or_expression
-    | bitwise_or_expression CONCAT_PIPES_SYMBOL bitwise_or_expression
+bitwise_expression:
+      bitwise_expression (BITWISE_OR_OPERATOR) bitwise_expression
+    | bitwise_expression (BITWISE_AND_OPERATOR) bitwise_expression
+    | bitwise_expression (SHIFT_LEFT_OPERATOR | SHIFT_RIGHT_OPERATOR) bitwise_expression
+    | bitwise_expression (PLUS_OPERATOR | MINUS_OPERATOR) bitwise_expression
+    | bitwise_expression multiplication_operator bitwise_expression
+    | bitwise_expression BITWISE_XOR_OPERATOR  bitwise_expression
+    | bitwise_expression CONCAT_PIPES_SYMBOL bitwise_expression
     | unary_expression
 ;
     
-
-/* MC use left recursion for bitwise expressions
-bitwise_or_expression:
-	bitwise_and_expression (BITWISE_OR_OPERATOR bitwise_and_expression)*
-;
-
-bitwise_and_expression:
-	shift_expression (BITWISE_AND_OPERATOR shift_expression)*
-;
-
-shift_expression:
-	additive_expression ((SHIFT_LEFT_OPERATOR | SHIFT_RIGHT_OPERATOR) additive_expression)*
-;
-
-additive_expression:
-	multiplicative_expression ((PLUS_OPERATOR | MINUS_OPERATOR) multiplicative_expression)*
-;
-
-multiplicative_expression:
-	bitwise_xor_expression (multiplication_operator bitwise_xor_expression)*
-;
-
-bitwise_xor_expression:
-	concat_expression (BITWISE_XOR_OPERATOR concat_expression)*
-;
-
-// The concat expression is only active if SQL_MODE_PIPES_AS_CONCAT is set (then || switches semantic from logical or to concat pipes).
-concat_expression:
-	unary_expression (CONCAT_PIPES_SYMBOL unary_expression)*
-;
-
-*/
 
 unary_expression:
 	(PLUS_OPERATOR | MINUS_OPERATOR | BITWISE_NOT_OPERATOR) unary_expression
 	| not2_rule (interval_expression | primary)
     | primary
 ;
-
-/* MC more left recursion!
-not_expression:
-	not2_rule? interval_expression
-;
-
-*/
 
 interval_expression:
 	INTERVAL_SYMBOL
@@ -1952,7 +1890,7 @@ runtime_function_call_expression:
 	| EXTRACT_SYMBOL OPEN_PAR_SYMBOL interval_unit FROM_SYMBOL expression CLOSE_PAR_SYMBOL
 	| GET_FORMAT_SYMBOL OPEN_PAR_SYMBOL date_time_type  COMMA_SYMBOL expression CLOSE_PAR_SYMBOL
 	| NOW_SYMBOL time_function_parameters?
-	| POSITION_SYMBOL OPEN_PAR_SYMBOL bitwise_or_expression IN_SYMBOL expression CLOSE_PAR_SYMBOL
+	| POSITION_SYMBOL OPEN_PAR_SYMBOL bitwise_expression IN_SYMBOL expression CLOSE_PAR_SYMBOL
 	| substring_function
 	| SYSDATE_SYMBOL time_function_parameters?
 	| (TIMESTAMP_ADD_SYMBOL | TIMESTAMP_DIFF_SYMBOL) OPEN_PAR_SYMBOL interval_timestamp_unit COMMA_SYMBOL expression COMMA_SYMBOL expression CLOSE_PAR_SYMBOL
@@ -2124,7 +2062,7 @@ variable_name:
 ;
 
 match_expression:
-	MATCH_SYMBOL OPEN_PAR_SYMBOL field_name_list CLOSE_PAR_SYMBOL AGAINST_SYMBOL OPEN_PAR_SYMBOL bitwise_or_expression
+	MATCH_SYMBOL OPEN_PAR_SYMBOL field_name_list CLOSE_PAR_SYMBOL AGAINST_SYMBOL OPEN_PAR_SYMBOL bitwise_expression
 		(
 			IN_SYMBOL BOOLEAN_SYMBOL MODE_SYMBOL
 			| (IN_SYMBOL NATURAL_SYMBOL LANGUAGE_SYMBOL MODE_SYMBOL)? (WITH_SYMBOL QUERY_SYMBOL EXPANSION_SYMBOL)?
@@ -2757,7 +2695,7 @@ partitioning:
 		SUBPARTITION_SYMBOL BY_SYMBOL LINEAR_SYMBOL?
 		(
 			(
-				 HASH_SYMBOL OPEN_PAR_SYMBOL bitwise_or_expression CLOSE_PAR_SYMBOL
+				 HASH_SYMBOL OPEN_PAR_SYMBOL bitwise_expression CLOSE_PAR_SYMBOL
 				| KEY_SYMBOL partition_key_algorithm? identifier_list_with_parentheses
 			)
 			(SUBPARTITIONS_SYMBOL real_ulong_number)?
@@ -2925,24 +2863,11 @@ column_name:
 ;
 
 column_ref:
-	column_ref_variants
-;
-
-// field_ident rule in the server parser.
-column_ref_variants:
 	dot_identifier
 	| qualified_identifier (dot_identifier)?
 ;
 
-column_internal_ref:
-	column_ref_variants
-;
-
 column_ref_with_wildcard:
-	column_ref_with_wildcard2
-;
-
-column_ref_with_wildcard2:
 	identifier
 	(
 		{_input.LA(2) ==  MULT_OPERATOR}? DOT_SYMBOL MULT_OPERATOR
