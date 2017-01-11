@@ -861,9 +861,9 @@ select_item_list:
 	(select_item | MULT_OPERATOR) (COMMA_SYMBOL select_item)*
 ;
 
-/* MC remove first mention of table_wild */
 select_item:
-	(table_wild) table_wild
+	table_wild                              // MC originally had two uses of table_wild
+    | identifier select_alias?
 	| expression select_alias?
 ;
 
@@ -1738,6 +1738,15 @@ use_command:
 // precedence is implemented there (by custom tree writing). We do it the classical way here.
 
 expression:
+      expression (LOGICAL_OR_OPERATOR | OR_SYMBOL) expression
+    | expression XOR_SYMBOL expression
+    | expression (LOGICAL_AND_OPERATOR | AND_SYMBOL) expression
+    | NOT_SYMBOL expression
+    | boolean_primary_expression
+;
+
+/* MC refactor expression to use left recursion
+expression:
 	logical_or_expression
 ;
 
@@ -1758,12 +1767,14 @@ logical_not_expression:
 	| boolean_primary_expression
 ;
 
+*/
+
 boolean_primary_expression:
 	predicate
 		( 
 			comparison_operator
 			(
-				{_input.LA(2) == OPEN_PAR_SYMBOL}? (ALL_SYMBOL | ANY_SYMBOL) subquery
+				(ALL_SYMBOL | ANY_SYMBOL) subquery
 				| predicate
 			)
 	    	| (IS_SYMBOL NOT_SYMBOL? ( null_literal | FALSE_SYMBOL | TRUE_SYMBOL | UNKNOWN_SYMBOL))+
@@ -2936,7 +2947,7 @@ index_ref:
 table_wild:
 	identifier
 	(
-		{_input.LA(2) ==  MULT_OPERATOR}? DOT_SYMBOL MULT_OPERATOR
+		DOT_SYMBOL MULT_OPERATOR
 		| dot_identifier DOT_SYMBOL MULT_OPERATOR
 	)
 ;       
@@ -3167,7 +3178,8 @@ string:
 ;
 
 num_literal:
-	INT_NUMBER
+    NUMBER         // MC had to add this or it wouldn't recognize integers?
+	| INT_NUMBER
 	| LONG_NUMBER
 	| ULONGLONG_NUMBER
 	| DECIMAL_NUMBER
@@ -4624,6 +4636,6 @@ fragment CONCAT_PIPES_SYMBOL: ;
 fragment AT_TEXT_SUFFIX: ; // See AT_SYMBOL for more information.
 
 // Tokens assigned in NUMBER rule.
-fragment INT_NUMBER: ; // NUM in sql_yacc.yy
+INT_NUMBER: NUMBER; // NUM in sql_yacc.yy
 fragment LONG_NUMBER: ;
 fragment ULONGLONG_NUMBER: ;
