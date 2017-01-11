@@ -863,7 +863,7 @@ select_item_list:
 
 select_item:
 	table_wild                              // MC originally had two uses of table_wild
-    | identifier select_alias?
+    | column_ref select_alis?
 	| expression select_alias?
 ;
 
