@@ -1802,6 +1802,19 @@ predicate_in:
 ;
 
 bitwise_or_expression:
+      bitwise_or_expression (BITWISE_OR_OPERATOR) bitwise_or_expression
+    | bitwise_or_expression (BITWISE_AND_OPERATOR) bitwise_or_expression
+    | bitwise_or_expression (SHIFT_LEFT_OPERATOR | SHIFT_RIGHT_OPERATOR) bitwise_or_expression
+    | bitwise_or_expression (PLUS_OPERATOR | MINUS_OPERATOR) bitwise_or_expression
+    | bitwise_or_expression multiplication_operator bitwise_or_expression
+    | bitwise_or_expression BITWISE_XOR_OPERATOR  bitwise_or_expression
+    | bitwise_or_expression CONCAT_PIPES_SYMBOL bitwise_or_expression
+    | unary_expression
+;
+    
+
+/* MC use left recursion for bitwise expressions
+bitwise_or_expression:
 	bitwise_and_expression (BITWISE_OR_OPERATOR bitwise_and_expression)*
 ;
 
@@ -1830,14 +1843,20 @@ concat_expression:
 	unary_expression (CONCAT_PIPES_SYMBOL unary_expression)*
 ;
 
+*/
+
 unary_expression:
 	(PLUS_OPERATOR | MINUS_OPERATOR | BITWISE_NOT_OPERATOR) unary_expression
-	| not_expression
+	| not2_rule (interval_expression | primary)
+    | primary
 ;
 
+/* MC more left recursion!
 not_expression:
 	not2_rule? interval_expression
 ;
+
+*/
 
 interval_expression:
 	INTERVAL_SYMBOL
@@ -1848,7 +1867,6 @@ interval_expression:
 			(OPEN_PAR_SYMBOL expression COMMA_SYMBOL) interval_function
 			| interval_time_span
 		)
-	| primary
 ;
 
 interval_function:
