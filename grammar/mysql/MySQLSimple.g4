@@ -82,6 +82,20 @@ SERVER_VERSION = 50800
   }
 }
 
+@lexer::members {
+
+  public int SQL_MODE_ANSI_QUOTES          = 1;
+  public int SQL_MODE_HIGH_NOT_PRECEDENCE  = 2;
+  public int SQL_MODE_PIPES_AS_CONCAT      = 4;
+  public int SQL_MODE_IGNORE_SPACE         = 8;
+  public int SQL_MODE_NO_BACKSLASH_ESCAPES = 16;
+  public int SERVER_VERSION = 50800;
+
+  public boolean SQL_MODE_ACTIVE(int x) {
+    return true;
+  }
+}
+
 //-------------------------------------------------------------------------------------------------
 
 query:
@@ -165,12 +179,12 @@ alter_event:
 		(ON_SYMBOL COMPLETION_SYMBOL NOT_SYMBOL? PRESERVE_SYMBOL)?
 		(RENAME_SYMBOL TO_SYMBOL identifier)?
 		(ENABLE_SYMBOL | DISABLE_SYMBOL (ON_SYMBOL SLAVE_SYMBOL)?)?
-		(COMMENT_SYMBOL string_literal)?
+		(COMMENT_SYMBOL STRING)?
 		(DO_SYMBOL compound_statement)?
 ;
 
 alter_log_file_group:
-	LOGFILE_SYMBOL GROUP_SYMBOL logfile_group_ref ADD_SYMBOL UNDOFILE_SYMBOL string_literal
+	LOGFILE_SYMBOL GROUP_SYMBOL logfile_group_ref ADD_SYMBOL UNDOFILE_SYMBOL STRING
 		(INITIAL_SIZE_SYMBOL EQUAL_OPERATOR? size_number)? WAIT_SYMBOL? ENGINE_SYMBOL EQUAL_OPERATOR? engine_ref
 ;
 
@@ -298,9 +312,9 @@ all_or_partition_name_list:
 alter_tablespace:
 	TABLESPACE_SYMBOL tablespace_ref
 	(
-		(ADD_SYMBOL | DROP_SYMBOL) DATAFILE_SYMBOL string_literal (alter_tablespace_option (COMMA_SYMBOL? alter_tablespace_option)*)?
+		(ADD_SYMBOL | DROP_SYMBOL) DATAFILE_SYMBOL STRING (alter_tablespace_option (COMMA_SYMBOL? alter_tablespace_option)*)?
 		// The alternatives listed below are not documented but appear in the server grammar file.
-		| CHANGE_SYMBOL DATAFILE_SYMBOL string_literal (change_tablespace_option (COMMA_SYMBOL? change_tablespace_option)*)?
+		| CHANGE_SYMBOL DATAFILE_SYMBOL STRING (change_tablespace_option (COMMA_SYMBOL? change_tablespace_option)*)?
 		| READ_ONLY_SYMBOL
 		| READ_WRITE_SYMBOL
 		| NOT_SYMBOL ACCESSIBLE_SYMBOL
@@ -374,7 +388,7 @@ create_event_tail:
 	EVENT_SYMBOL if_not_exists? event_name ON_SYMBOL SCHEDULE_SYMBOL schedule
 		(ON_SYMBOL COMPLETION_SYMBOL NOT_SYMBOL? PRESERVE_SYMBOL)?
 		(ENABLE_SYMBOL | DISABLE_SYMBOL (ON_SYMBOL SLAVE_SYMBOL)?)?
-		(COMMENT_SYMBOL string_literal)?
+		(COMMENT_SYMBOL STRING)?
 		DO_SYMBOL compound_statement
 ;
 
@@ -411,7 +425,7 @@ function_body: // Both built-in functions and UDFs.
 ;
 
 udf_tail:
-	udf_name RETURNS_SYMBOL (STRING_SYMBOL | INT_SYMBOL | REAL_SYMBOL | DECIMAL_SYMBOL) SONAME_SYMBOL string_literal
+	udf_name RETURNS_SYMBOL (STRING_SYMBOL | INT_SYMBOL | REAL_SYMBOL | DECIMAL_SYMBOL) SONAME_SYMBOL STRING
 ;
 
 routine_create_options:
@@ -428,7 +442,7 @@ routine_alter_options:
 ;
 	
 routine_option:
-	COMMENT_SYMBOL string_literal
+	COMMENT_SYMBOL STRING
 	| LANGUAGE_SYMBOL SQL_SYMBOL
 	| NO_SYMBOL SQL_SYMBOL
 	| CONTAINS_SYMBOL SQL_SYMBOL
@@ -459,7 +473,7 @@ create_logfile_group: // For external use only. Don't reference this in the norm
 ;
 
 create_logfile_group_tail:
-	LOGFILE_SYMBOL GROUP_SYMBOL logfile_group_name ADD_SYMBOL (UNDOFILE_SYMBOL | REDOFILE_SYMBOL) string_literal
+	LOGFILE_SYMBOL GROUP_SYMBOL logfile_group_name ADD_SYMBOL (UNDOFILE_SYMBOL | REDOFILE_SYMBOL) STRING
 		logfile_group_options?
 ;
 
@@ -472,7 +486,7 @@ logfile_group_option:
 	| (UNDO_BUFFER_SIZE_SYMBOL | REDO_BUFFER_SIZE_SYMBOL) EQUAL_OPERATOR? size_number
 	| NODEGROUP_SYMBOL EQUAL_OPERATOR? real_ulong_number
 	| (WAIT_SYMBOL | NO_WAIT_SYMBOL)
-	| COMMENT_SYMBOL EQUAL_OPERATOR? string_literal
+	| COMMENT_SYMBOL EQUAL_OPERATOR? STRING
 	| STORAGE_SYMBOL? ENGINE_SYMBOL EQUAL_OPERATOR? engine_ref
 ;
 	
@@ -491,12 +505,12 @@ server_options:
 
 // Options for CREATE/ALTER SERVER, used for the federated storage engine.
 server_option:
-	HOST_SYMBOL string_literal
-	| DATABASE_SYMBOL string_literal
-	| USER_SYMBOL string_literal
-	| PASSWORD_SYMBOL string_literal
-	| SOCKET_SYMBOL string_literal
-	| OWNER_SYMBOL string_literal
+	HOST_SYMBOL STRING
+	| DATABASE_SYMBOL STRING
+	| USER_SYMBOL STRING
+	| PASSWORD_SYMBOL STRING
+	| SOCKET_SYMBOL STRING
+	| OWNER_SYMBOL STRING
 	| PORT_SYMBOL ulong_number
 ;
 
@@ -549,7 +563,7 @@ create_tablespace: // For external use only. Don't reference this in the normal 
 ;
 
 create_tablespace_tail:
-	TABLESPACE_SYMBOL tablespace_name ADD_SYMBOL DATAFILE_SYMBOL string_literal
+	TABLESPACE_SYMBOL tablespace_name ADD_SYMBOL DATAFILE_SYMBOL STRING
 		(USE_SYMBOL LOGFILE_SYMBOL GROUP_SYMBOL logfile_group_ref)? tablespace_options?
 ;
 
@@ -565,7 +579,7 @@ tablespace_option:
 	| NODEGROUP_SYMBOL EQUAL_OPERATOR? real_ulong_number
 	| STORAGE_SYMBOL? ENGINE_SYMBOL EQUAL_OPERATOR? engine_ref
 	| (WAIT_SYMBOL | NO_WAIT_SYMBOL)
-	| COMMENT_SYMBOL EQUAL_OPERATOR? string_literal
+	| COMMENT_SYMBOL EQUAL_OPERATOR? STRING
 	| {SERVER_VERSION >= 50707}? FILE_BLOCK_SIZE_SYMBOL EQUAL_OPERATOR? size_number
 ;
 
@@ -751,7 +765,7 @@ duplicate_key_update:
 //--------------------------------------------------------------------------------------------------
 
 load_statement:
-	LOAD_SYMBOL data_or_xml (LOW_PRIORITY_SYMBOL | CONCURRENT_SYMBOL)? LOCAL_SYMBOL? INFILE_SYMBOL string_literal
+	LOAD_SYMBOL data_or_xml (LOW_PRIORITY_SYMBOL | CONCURRENT_SYMBOL)? LOCAL_SYMBOL? INFILE_SYMBOL STRING
 		(REPLACE_SYMBOL | IGNORE_SYMBOL)? INTO_SYMBOL TABLE_SYMBOL table_ref
 		use_partition? charset_clause?
 		xml_rows_identified_by?
@@ -894,8 +908,8 @@ limit_option:
 into_clause:
 	INTO_SYMBOL
 	(
-		OUTFILE_SYMBOL string_literal charset_clause? fields_clause? lines_clause?
-		| DUMPFILE_SYMBOL string_literal
+		OUTFILE_SYMBOL STRING charset_clause? fields_clause? lines_clause?
+		| DUMPFILE_SYMBOL STRING
 		| AT_SIGN_SYMBOL? (text_or_identifier | AT_TEXT_SUFFIX) (COMMA_SYMBOL AT_SIGN_SYMBOL? (text_or_identifier | AT_TEXT_SUFFIX))*
 	)
 ;
@@ -1147,7 +1161,7 @@ xid:
 //--------------------------------------------------------------------------------------------------
 
 replication_statement:
-	PURGE_SYMBOL (BINARY_SYMBOL | MASTER_SYMBOL) LOGS_SYMBOL (TO_SYMBOL string_literal | BEFORE_SYMBOL expression)
+	PURGE_SYMBOL (BINARY_SYMBOL | MASTER_SYMBOL) LOGS_SYMBOL (TO_SYMBOL STRING | BEFORE_SYMBOL expression)
 	| change_master
 	| {SERVER_VERSION >= 50700}? change_replication
 	/* Defined in the miscellaneous statement to avoid ambiguities.
@@ -1187,7 +1201,7 @@ master_option:
 	| MASTER_SSL_CIPHER_SYMBOL EQUAL_OPERATOR text_string_no_linebreak
 	| MASTER_SSL_KEY_SYMBOL EQUAL_OPERATOR text_string_no_linebreak
 	| MASTER_SSL_VERIFY_SERVER_CERT_SYMBOL EQUAL_OPERATOR ulong_number
-	| MASTER_SSL_CRL_SYMBOL EQUAL_OPERATOR string_literal
+	| MASTER_SSL_CRL_SYMBOL EQUAL_OPERATOR STRING
 	| MASTER_SSL_CRLPATH_SYMBOL EQUAL_OPERATOR text_string_no_linebreak
 	| MASTER_HEARTBEAT_PERIOD_SYMBOL EQUAL_OPERATOR ulong_number
 	| IGNORE_SERVER_IDS_SYMBOL EQUAL_OPERATOR server_id_list
@@ -1275,7 +1289,7 @@ group_replication:
 //--------------------------------------------------------------------------------------------------
 
 prepared_statement:
-	PREPARE_SYMBOL identifier FROM_SYMBOL (string_literal | user_variable)
+	PREPARE_SYMBOL identifier FROM_SYMBOL (STRING | user_variable)
 	| execute_statement
 	| (DEALLOCATE_SYMBOL | DROP_SYMBOL) PREPARE_SYMBOL identifier
 ;
@@ -1454,8 +1468,8 @@ table_administration_statement:
 	| CHECKSUM_SYMBOL TABLE_SYMBOL table_ref_list (QUICK_SYMBOL | EXTENDED_SYMBOL)?
 	| OPTIMIZE_SYMBOL no_write_to_bin_log? TABLE_SYMBOL table_ref_list
 	| REPAIR_SYMBOL no_write_to_bin_log? TABLE_SYMBOL table_ref_list repair_option*
-	| {SERVER_VERSION < 50500}? BACKUP_SYMBOL TABLE_SYMBOL table_ref_list TO_SYMBOL string_literal
-	| {SERVER_VERSION < 50500}? RESTORE_SYMBOL TABLE_SYMBOL table_ref_list FROM_SYMBOL string_literal
+	| {SERVER_VERSION < 50500}? BACKUP_SYMBOL TABLE_SYMBOL table_ref_list TO_SYMBOL STRING
+	| {SERVER_VERSION < 50500}? RESTORE_SYMBOL TABLE_SYMBOL table_ref_list FROM_SYMBOL STRING
 ;
 
 check_option:
@@ -1469,7 +1483,7 @@ repair_option:
 //--------------------------------------------------------------------------------------------------
 
 install_uninstall_statment:
-	INSTALL_SYMBOL PLUGIN_SYMBOL identifier SONAME_SYMBOL string_literal
+	INSTALL_SYMBOL PLUGIN_SYMBOL identifier SONAME_SYMBOL STRING
 	| UNINSTALL_SYMBOL PLUGIN_SYMBOL identifier
 ;
 
@@ -1605,7 +1619,7 @@ profile_type:
 //--------------------------------------------------------------------------------------------------
 
 other_administrative_statement:
-	BINLOG_SYMBOL string_literal
+	BINLOG_SYMBOL STRING
 	| CACHE_SYMBOL INDEX_SYMBOL key_cache_list_or_parts IN_SYMBOL (identifier | DEFAULT_SYMBOL)
 	| FLUSH_SYMBOL no_write_to_bin_log?
 		(
@@ -1738,38 +1752,32 @@ use_command:
 // precedence is implemented there (by custom tree writing). We do it the classical way here.
 
 expression:
-      expression (LOGICAL_OR_OPERATOR | OR_SYMBOL) expression
+      OPEN_PAR_SYMBOL expression CLOSE_PAR_SYMBOL   
+    | expression (LOGICAL_OR_OPERATOR | OR_SYMBOL) expression
     | expression XOR_SYMBOL expression
     | expression (LOGICAL_AND_OPERATOR | AND_SYMBOL) expression
     | NOT_SYMBOL expression
     | boolean_primary_expression
-    | predicate
 ;
 
 boolean_primary_expression:
-	predicate
-		( 
-			comparison_operator
-			(
-				(ALL_SYMBOL | ANY_SYMBOL) subquery
-				| predicate
-			)
-	    	| (IS_SYMBOL NOT_SYMBOL? ( null_literal | FALSE_SYMBOL | TRUE_SYMBOL | UNKNOWN_SYMBOL))+
-		)+
+      boolean_primary_expression 
+        (
+            comparison_operator (ALL_SYMBOL | ANY_SYMBOL) subquery
+          | comparison_operator predicate
+        )
+    | boolean_primary_expression (IS_SYMBOL NOT_SYMBOL? ( null_literal | FALSE_SYMBOL | TRUE_SYMBOL | UNKNOWN_SYMBOL))
+    | predicate
 ;
 
 predicate:
-	bitwise_expression
-		( 
-			NOT_SYMBOL?
-				(
-					BETWEEN_SYMBOL bitwise_expression AND_SYMBOL predicate
-					| LIKE_SYMBOL unary_expression (ESCAPE_SYMBOL primary)?
-					| REGEXP_SYMBOL bitwise_expression
-					| IN_SYMBOL predicate_in
-	    		)
-	    	| SOUNDS_SYMBOL LIKE_SYMBOL bitwise_expression
-		)?
+	  bit_expr SOUNDS_SYMBOL LIKE_SYMBOL bit_expr               # SoundsLikePred              // Only rule that can't be negated
+    | bit_expr NOT_SYMBOL bit_expr                              # NotPred
+    | bit_expr BETWEEN_SYMBOL bit_expr AND_SYMBOL predicate     # BetweenPred
+    | bit_expr LIKE_SYMBOL primary (ESCAPE_SYMBOL primary)?     # LikePred
+    | bit_expr REGEXP_SYMBOL bit_expr                           # RegexpPred
+    | bit_expr IN_SYMBOL predicate_in                           # InPred
+    | bit_expr                                                  # ContinueNode1
 ;
 
 // One of the 2 rules were 2 sub rules with unlimited nesting come together (and we need a predicate).
@@ -1778,23 +1786,25 @@ predicate_in:
 	| expression_list_with_parentheses
 ;
 
-bitwise_expression:
-      bitwise_expression (BITWISE_OR_OPERATOR) bitwise_expression
-    | bitwise_expression (BITWISE_AND_OPERATOR) bitwise_expression
-    | bitwise_expression (SHIFT_LEFT_OPERATOR | SHIFT_RIGHT_OPERATOR) bitwise_expression
-    | bitwise_expression (PLUS_OPERATOR | MINUS_OPERATOR) bitwise_expression
-    | bitwise_expression multiplication_operator bitwise_expression
-    | bitwise_expression BITWISE_XOR_OPERATOR  bitwise_expression
-    | bitwise_expression CONCAT_PIPES_SYMBOL bitwise_expression
-    | unary_expression
+bit_expr:
+      bit_expr (BITWISE_OR_OPERATOR) bit_expr                           # OrBitExpr
+    | bit_expr (BITWISE_AND_OPERATOR) bit_expr                          # AndBitExpr
+    | bit_expr (SHIFT_LEFT_OPERATOR | SHIFT_RIGHT_OPERATOR) bit_expr    # ShiftBitExpr
+    | bit_expr (PLUS_OPERATOR | MINUS_OPERATOR) bit_expr                # AddBitExpr
+    | bit_expr multiplication_operator bit_expr                         # MultBitExpr
+    | bit_expr BITWISE_XOR_OPERATOR  bit_expr                           # XorBitExpr
+    | bit_expr CONCAT_PIPES_SYMBOL bit_expr                             # PipesBitExpr // TODO: needs to be toggled depending on setting
+    | primary                                                           # ContinueNode2
 ;
     
 
-unary_expression:
-	(PLUS_OPERATOR | MINUS_OPERATOR | BITWISE_NOT_OPERATOR) unary_expression
-	| not2_rule (interval_expression | primary)
+/* MC not clear if I need to put interval_expression in primary
+unary_expr:
+	| not2_rule interval_expression                                       # NotIntervalUnary
+    | not2_rule primary                                                   # 
     | primary
 ;
+*/
 
 interval_expression:
 	INTERVAL_SYMBOL
@@ -1816,23 +1826,30 @@ interval_time_span:
 ;
 
 primary:
-    (
-		literal
-		| function_call
-		| runtime_function_call // Complete functions defined in the grammar.
-		| column_ref ( {SERVER_VERSION >= 50708}? (JSON_SEPARATOR_SYMBOL text_string)? | /* empty*/ )
-		| PARAM_MARKER
-		| variable
-		| EXISTS_SYMBOL subquery
-		| expression_with_nested_parentheses
-		| ROW_SYMBOL OPEN_PAR_SYMBOL expression (COMMA_SYMBOL expression)+ CLOSE_PAR_SYMBOL
-		| OPEN_CURLY_SYMBOL identifier expression CLOSE_CURLY_SYMBOL
-		| match_expression
-		| case_expression
-		| cast_expression
-	)
+    literal
+    | function_call
+    | (COLLATE_SYMBOL collation_name)+
+    | unary_expr
+    | runtime_function_call                                                  // Complete functions defined in the grammar.
+    | column_ref ( {SERVER_VERSION >= 50708}? (JSON_SEPARATOR_SYMBOL text_string)? | /* empty*/ )
+    | PARAM_MARKER
+    | variable
+    | EXISTS_SYMBOL subquery
+    | expression_with_nested_parentheses
+    | ROW_SYMBOL OPEN_PAR_SYMBOL expression (COMMA_SYMBOL expression)+ CLOSE_PAR_SYMBOL
+    | OPEN_CURLY_SYMBOL identifier expression CLOSE_CURLY_SYMBOL
+    | match_expression
+    | case_expression
+    | cast_expression
+    | interval_expression
+	/*)
 	// Consume any collation expression locally to avoid ambiguities with the recursive cast_expression.
 	(COLLATE_SYMBOL collation_name)*
+    */
+;
+
+unary_expr: 
+    (PLUS_OPERATOR | MINUS_OPERATOR | BITWISE_NOT_OPERATOR | not2_rule) primary
 ;
 
 // This part is tricky, because all alternatives can have an unlimited nesting within parentheses.
@@ -1890,7 +1907,7 @@ runtime_function_call_expression:
 	| EXTRACT_SYMBOL OPEN_PAR_SYMBOL interval_unit FROM_SYMBOL expression CLOSE_PAR_SYMBOL
 	| GET_FORMAT_SYMBOL OPEN_PAR_SYMBOL date_time_type  COMMA_SYMBOL expression CLOSE_PAR_SYMBOL
 	| NOW_SYMBOL time_function_parameters?
-	| POSITION_SYMBOL OPEN_PAR_SYMBOL bitwise_expression IN_SYMBOL expression CLOSE_PAR_SYMBOL
+	| POSITION_SYMBOL OPEN_PAR_SYMBOL bit_expr IN_SYMBOL expression CLOSE_PAR_SYMBOL
 	| substring_function
 	| SYSDATE_SYMBOL time_function_parameters?
 	| (TIMESTAMP_ADD_SYMBOL | TIMESTAMP_DIFF_SYMBOL) OPEN_PAR_SYMBOL interval_timestamp_unit COMMA_SYMBOL expression COMMA_SYMBOL expression CLOSE_PAR_SYMBOL
@@ -1908,7 +1925,7 @@ runtime_function_call_expression:
 	| FORMAT_SYMBOL OPEN_PAR_SYMBOL expression COMMA_SYMBOL expression (COMMA_SYMBOL expression)? CLOSE_PAR_SYMBOL
 	| MICROSECOND_SYMBOL OPEN_PAR_SYMBOL expression CLOSE_PAR_SYMBOL
 	| MOD_SYMBOL OPEN_PAR_SYMBOL expression COMMA_SYMBOL expression CLOSE_PAR_SYMBOL
-	| {SERVER_VERSION < 50607}? OLD_PASSWORD_SYMBOL OPEN_PAR_SYMBOL string_literal CLOSE_PAR_SYMBOL
+	| {SERVER_VERSION < 50607}? OLD_PASSWORD_SYMBOL OPEN_PAR_SYMBOL STRING CLOSE_PAR_SYMBOL
 	| PASSWORD_SYMBOL OPEN_PAR_SYMBOL expression CLOSE_PAR_SYMBOL
 	| QUARTER_SYMBOL OPEN_PAR_SYMBOL expression CLOSE_PAR_SYMBOL
 	| REPEAT_SYMBOL OPEN_PAR_SYMBOL expression COMMA_SYMBOL expression CLOSE_PAR_SYMBOL
@@ -2021,10 +2038,6 @@ count_function:
 ;
 
 function_call:
-	function_call_expression
-;
-
-function_call_expression:
 	pure_identifier
 	(
 		OPEN_PAR_SYMBOL aliased_expression_list? CLOSE_PAR_SYMBOL // For both UDF + other functions.
@@ -2062,7 +2075,7 @@ variable_name:
 ;
 
 match_expression:
-	MATCH_SYMBOL OPEN_PAR_SYMBOL field_name_list CLOSE_PAR_SYMBOL AGAINST_SYMBOL OPEN_PAR_SYMBOL bitwise_expression
+	MATCH_SYMBOL OPEN_PAR_SYMBOL field_name_list CLOSE_PAR_SYMBOL AGAINST_SYMBOL OPEN_PAR_SYMBOL bit_expr
 		(
 			IN_SYMBOL BOOLEAN_SYMBOL MODE_SYMBOL
 			| (IN_SYMBOL NATURAL_SYMBOL LANGUAGE_SYMBOL MODE_SYMBOL)? (WITH_SYMBOL QUERY_SYMBOL EXPANSION_SYMBOL)?
@@ -2320,7 +2333,7 @@ sp_condition:
 ;
 
 sqlstate:
-	SQLSTATE_SYMBOL VALUE_SYMBOL? string_literal
+	SQLSTATE_SYMBOL VALUE_SYMBOL? STRING
 ;
 
 handler_declaration:
@@ -2458,7 +2471,7 @@ attribute:
 	| {_input.LA(2) != KEY_SYMBOL}? UNIQUE_SYMBOL
 	| (PRIMARY_SYMBOL | UNIQUE_SYMBOL) KEY_SYMBOL
 	| KEY_SYMBOL
-	| COMMENT_SYMBOL string_literal
+	| COMMENT_SYMBOL STRING
 	| COLLATE_SYMBOL collation_name
 	| COLUMN_FORMAT_SYMBOL (FIXED_SYMBOL | DYNAMIC_SYMBOL | DEFAULT_SYMBOL)
 	| STORAGE_SYMBOL (DISK_SYMBOL | MEMORY_SYMBOL | DEFAULT_SYMBOL)
@@ -2517,7 +2530,7 @@ spatial_index_option:
 
 all_key_option:
 	KEY_BLOCK_SIZE_SYMBOL EQUAL_OPERATOR? ulong_number
-	| {SERVER_VERSION >= 50600}? COMMENT_SYMBOL string_literal
+	| {SERVER_VERSION >= 50600}? COMMENT_SYMBOL STRING
 ;
 
 reference_option:
@@ -2695,7 +2708,7 @@ partitioning:
 		SUBPARTITION_SYMBOL BY_SYMBOL LINEAR_SYMBOL?
 		(
 			(
-				 HASH_SYMBOL OPEN_PAR_SYMBOL bitwise_expression CLOSE_PAR_SYMBOL
+				 HASH_SYMBOL OPEN_PAR_SYMBOL bit_expr CLOSE_PAR_SYMBOL
 				| KEY_SYMBOL partition_key_algorithm? identifier_list_with_parentheses
 			)
 			(SUBPARTITIONS_SYMBOL real_ulong_number)?
@@ -2730,8 +2743,8 @@ partition_option:
 	| STORAGE_SYMBOL? ENGINE_SYMBOL EQUAL_OPERATOR? engine_ref
 	| NODEGROUP_SYMBOL EQUAL_OPERATOR? real_ulong_number
 	| (MAX_ROWS_SYMBOL | MIN_ROWS_SYMBOL) EQUAL_OPERATOR? real_ulong_number
-	| (DATA_SYMBOL | INDEX_SYMBOL) DIRECTORY_SYMBOL EQUAL_OPERATOR? string_literal
-	| COMMENT_SYMBOL EQUAL_OPERATOR? string_literal
+	| (DATA_SYMBOL | INDEX_SYMBOL) DIRECTORY_SYMBOL EQUAL_OPERATOR? STRING
+	| COMMENT_SYMBOL EQUAL_OPERATOR? STRING
 ;
 
 subpartition_definition:
@@ -3093,7 +3106,7 @@ text_string_no_linebreak:
 ;
 
 literal:
-	string_literal
+	STRING
 	| num_literal
    	// Date, time and timestamp can be both a temporal literal or a field name, so we need a predicate.
 	| {_input.LA(1) == DATE_SYMBOL || _input.LA(1) == TIME_SYMBOL || _input.LA(1) == TIMESTAMP_SYMBOL}? temporal_literal
@@ -3111,15 +3124,6 @@ signed_literal:
 
 // To ease post processing strings (for automatic concatenation) we use an own subtree for each string.
 // Because of that already mentioned bug we need a separate rule when doing tree rewrite for a single alternative.
-string_literal:
-	string
-;
-
-string:
-	NCHAR_TEXT
-	| UNDERSCORE_CHARSET? (SINGLE_QUOTED_TEXT | {!SQL_MODE_ACTIVE(SQL_MODE_ANSI_QUOTES)}? DOUBLE_QUOTED_TEXT)+
-;
-
 num_literal:
     NUMBER         // MC had to add this or it wouldn't recognize integers?
 	| INT_NUMBER
@@ -4404,6 +4408,13 @@ INVALID_INPUT:
 	| ']'
 ;
 
+// Composite Tokens
+STRING:
+	NCHAR_TEXT
+	| UNDERSCORE_CHARSET? (SINGLE_QUOTED_TEXT | {!SQL_MODE_ACTIVE(SQL_MODE_ANSI_QUOTES)}? DOUBLE_QUOTED_TEXT)+
+;
+
+
 // Basic tokens. Tokens used in parser rules must not be fragments!
 
 HEX_NUMBER:		('0X' HEXDIGIT+) | ('X' '\'' HEXDIGIT+ '\'');
@@ -4442,7 +4453,7 @@ FLOAT_NUMBER:	DECIMAL_NUMBER 'E' (MINUS_OPERATOR | PLUS_OPERATOR)? DIGITS;
 // The quotes must be handled by the consumer code (tree walker etc.), as well as any escape sequences.
 // That's necessary to not break lexing for invalid sequences and avoids casing issues.
 // This will also help to reproduce the same output if this is a reformatter.
-// Multiple identifiers with only whitespaces between them are handled in the string_literal parser rule.
+// Multiple identifiers with only whitespaces between them are handled in the STRING parser rule.
 // In order to aid the consumption of repeated or escaped quote chars the token contains a counter in its
 // user1 field. So post processing (except for outer quotes) is only necessary if this field is > 0.
 
