@@ -41,7 +41,6 @@ options {
 
 //-------------------------------------------------------------------------------------------------
 
-/*
 @lexer::header {
 
 SQL_MODE_ANSI_QUOTES          = 1
@@ -54,10 +53,12 @@ VERSION_MATCHED = True
 IN_VERSION_COMMENT = True
 
 SERVER_VERSION = 50800
+
+def SERVER_VERSION_BETWEEN(vers, a, b): return a <= vers < b
 # def TYPE_FROM_VERSION(version, type): return type
 # def DEPRECATED_TYPE_FROM_VERSION(version, type): return type
 # def TYPE_IN_VERSION_RANGE(small_version, large_version, type): return type
-# def SQL_MODE_ACTIVE(mode): return True
+def SQL_MODE_ACTIVE(mode): return True
 
 # members ---
 # def check_version_token(*args, **kwargs): return False
@@ -66,8 +67,8 @@ SERVER_VERSION = 50800
 # def isAllDigits(ctx): pass
 # def determine_num_type(text): pass
 }
-*/
 
+/* MC unquote for JAVA grun action
 @parser::members {
 
   public int SQL_MODE_ANSI_QUOTES          = 1;
@@ -95,6 +96,7 @@ SERVER_VERSION = 50800
     return true;
   }
 }
+*/
 
 //-------------------------------------------------------------------------------------------------
 
@@ -135,7 +137,7 @@ statement:
 	| account_management_statement
 	| table_administration_statement
 	| install_uninstall_statment
-	| {_input.LA(1) == SET_SYMBOL && _input.LA(2) != PASSWORD_SYMBOL}? set_statement // SET PASSWORD is handled in account_management_statement.
+	| set_statement // SET PASSWORD is handled in account_management_statement.
 	| show_statement
 	| other_administrative_statement
 	
@@ -277,7 +279,7 @@ index_lock_algorithm:
 ;
 
 alter_partition:
-	{_input.LA(1) == ADD_SYMBOL && _input.LA(2) == PARTITION_SYMBOL}? ADD_SYMBOL PARTITION_SYMBOL no_write_to_bin_log?
+	ADD_SYMBOL PARTITION_SYMBOL no_write_to_bin_log?
 		(
 			OPEN_PAR_SYMBOL partition_definition CLOSE_PAR_SYMBOL
 			| PARTITIONS_SYMBOL real_ulong_number
@@ -858,7 +860,7 @@ select_option:
 	query_spec_option
 	| SQL_NO_CACHE_SYMBOL
 	| SQL_CACHE_SYMBOL
-	| {SERVER_VERSION >= 50704 && SERVER_VERSION < 50708}? MAX_STATEMENT_TIME_SYMBOL EQUAL_OPERATOR real_ulong_number
+	| {SERVER_VERSION_BETWEEN(SERVER_VERSION,  50704, 50708)}? MAX_STATEMENT_TIME_SYMBOL EQUAL_OPERATOR real_ulong_number
 ;
 
 query_spec_option:
@@ -1382,7 +1384,7 @@ rename_user:
 revoke_statement:
 	REVOKE_SYMBOL
 	(
-		{_input.LA(1) == ALL_SYMBOL}? ALL_SYMBOL PRIVILEGES_SYMBOL? COMMA_SYMBOL GRANT_SYMBOL OPTION_SYMBOL FROM_SYMBOL user_list
+		ALL_SYMBOL PRIVILEGES_SYMBOL? COMMA_SYMBOL GRANT_SYMBOL OPTION_SYMBOL FROM_SYMBOL user_list
 		| grant_privileges privilege_target FROM_SYMBOL user_list
 		| {SERVER_VERSION >= 50500}? PROXY_SYMBOL ON_SYMBOL user FROM_SYMBOL user_list
 	)
@@ -1502,7 +1504,7 @@ set_statement:
 ;
 
 option_value_no_option_type:
-	{_input.LA(1) == NAMES_SYMBOL}? NAMES_SYMBOL
+	NAMES_SYMBOL
 		(
 			equal expression
 			| charset_name_or_default (COLLATE_SYMBOL collation_name_or_default)?
@@ -1546,7 +1548,7 @@ show_statement:
 		| EVENTS_SYMBOL in_db? like_or_where?
 		| TABLE_SYMBOL STATUS_SYMBOL in_db? like_or_where?
 		| OPEN_SYMBOL TABLES_SYMBOL in_db? like_or_where?
-		| {(SERVER_VERSION >= 50105) && (SERVER_VERSION < 50500)}? PLUGIN_SYMBOL // Supported between 5.1.5 and 5.5.0.
+		| {SERVER_VERSION_BETWEEN(SERVER_VERSION, 50105, 50500)}? PLUGIN_SYMBOL // Supported between 5.1.5 and 5.5.0.
 		| {SERVER_VERSION >= 50500}? PLUGINS_SYMBOL
 		| ENGINE_SYMBOL engine_ref (STATUS_SYMBOL | MUTEX_SYMBOL)
 		| FULL_SYMBOL? COLUMNS_SYMBOL (FROM_SYMBOL | IN_SYMBOL) table_ref in_db? like_or_where?
@@ -1592,7 +1594,7 @@ show_statement:
 ;
 
 non_blocking:
-	{SERVER_VERSION >= 50700 && SERVER_VERSION < 50706}? NONBLOCKING_SYMBOL?
+	{SERVER_VERSION_BETWEEN(SERVER_VERSION, 50700, 50706)}? NONBLOCKING_SYMBOL?
 	| /* empty */
 ;
 
@@ -1782,7 +1784,7 @@ predicate:
 
 // One of the 2 rules were 2 sub rules with unlimited nesting come together (and we need a predicate).
 predicate_in:
-	{_input.LA(1) == OPEN_PAR_SYMBOL && _input.LA(2) == SELECT_SYMBOL}? subquery
+	subquery
 	| expression_list_with_parentheses
 ;
 
@@ -1855,7 +1857,7 @@ unary_expr:
 // This part is tricky, because all alternatives can have an unlimited nesting within parentheses.
 // Best results by using a custom semantic predicate.
 expression_with_nested_parentheses:
-	{_input.LA(1) == OPEN_PAR_SYMBOL && _input.LA(2) == SELECT_SYMBOL}? subquery
+	subquery
 	| expression_list_with_parentheses
 ;
 
@@ -2468,7 +2470,7 @@ attribute:
 	| ON_SYMBOL UPDATE_SYMBOL NOW_SYMBOL time_function_parameters?
 	| AUTO_INCREMENT_SYMBOL
 	| SERIAL_SYMBOL DEFAULT_SYMBOL VALUE_SYMBOL
-	| {_input.LA(2) != KEY_SYMBOL}? UNIQUE_SYMBOL
+	| UNIQUE_SYMBOL
 	| (PRIMARY_SYMBOL | UNIQUE_SYMBOL) KEY_SYMBOL
 	| KEY_SYMBOL
 	| COMMENT_SYMBOL STRING
@@ -2855,7 +2857,7 @@ online_option:
 ;
 
 no_write_to_bin_log:
-	{_input.LA(1) == LOCAL_SYMBOL}? LOCAL_SYMBOL // Predicate needed to direct the parser (as LOCAL can also be an identifier).
+	LOCAL_SYMBOL // Predicate needed to direct the parser (as LOCAL can also be an identifier).
 	| NO_WRITE_TO_BINLOG_SYMBOL
 ;
 
@@ -2883,10 +2885,10 @@ column_ref:
 column_ref_with_wildcard:
 	identifier
 	(
-		{_input.LA(2) ==  MULT_OPERATOR}? DOT_SYMBOL MULT_OPERATOR
+		DOT_SYMBOL MULT_OPERATOR
 		| dot_identifier
 		(
-			{_input.LA(2) ==  MULT_OPERATOR}? DOT_SYMBOL MULT_OPERATOR
+			DOT_SYMBOL MULT_OPERATOR
 			| dot_identifier
 		)?
 	)?
@@ -2999,7 +3001,7 @@ filter_table_ref: // Always qualified.
 table_ref_with_wildcard:
 	identifier
 	(
-		{_input.LA(2) == MULT_OPERATOR}? DOT_SYMBOL MULT_OPERATOR
+		DOT_SYMBOL MULT_OPERATOR
 		| dot_identifier (DOT_SYMBOL MULT_OPERATOR)?
 	)?
 ;
@@ -3109,7 +3111,7 @@ literal:
 	STRING
 	| num_literal
    	// Date, time and timestamp can be both a temporal literal or a field name, so we need a predicate.
-	| {_input.LA(1) == DATE_SYMBOL || _input.LA(1) == TIME_SYMBOL || _input.LA(1) == TIMESTAMP_SYMBOL}? temporal_literal
+	| temporal_literal
 	| null_literal
 	| bool_literal
 	| UNDERSCORE_CHARSET? HEX_NUMBER
@@ -3174,7 +3176,7 @@ precision:
 
 nchar_literal:
 	NCHAR_SYMBOL
-	| {_input.LA(3) != VARYING_SYMBOL}? NATIONAL_SYMBOL CHAR_SYMBOL // Predicate to solve ambiguity with nvarchar_literal.
+	| NATIONAL_SYMBOL CHAR_SYMBOL // Predicate to solve ambiguity with nvarchar_literal.
 ;
 
 varchar_literal:
@@ -4411,7 +4413,7 @@ INVALID_INPUT:
 // Composite Tokens
 STRING:
 	NCHAR_TEXT
-	| UNDERSCORE_CHARSET? (SINGLE_QUOTED_TEXT | {!SQL_MODE_ACTIVE(SQL_MODE_ANSI_QUOTES)}? DOUBLE_QUOTED_TEXT)+
+	| UNDERSCORE_CHARSET? (SINGLE_QUOTED_TEXT | {not SQL_MODE_ACTIVE(SQL_MODE_ANSI_QUOTES)}? DOUBLE_QUOTED_TEXT)+ // MC change ~ to ! for going to java
 ;
 
 
@@ -4504,7 +4506,7 @@ SINGLE_QUOTED_TEXT
 */
 
 COMMENT_RULE:
-	{_input.LA(1) == '-' && _input.LA(2) == '-' && (_input.LA(3) == EOF || _input.LA(3) == ' ' || _input.LA(3) == '\t' || _input.LA(3) == '\n' || _input.LA(3) == '\r')}? DASHDASH_COMMENT
+	DASHDASH_COMMENT
 	| ML_COMMENT_HEAD BLOCK_COMMENT
 	/* MC | VERSION_COMMENT_END */
 	| POUND_COMMENT
