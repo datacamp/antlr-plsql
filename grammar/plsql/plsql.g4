@@ -1311,6 +1311,10 @@ seed_part
 // $>
 
 // $<Expression & Condition
+cursor_expression
+    : CURSOR '(' subquery ')'
+    ;
+
 expression_list
     : '(' expression? (',' expression)* ')'
     ;
@@ -1321,9 +1325,9 @@ condition
 
 expression
     : CURSOR '(' subquery ')'      # CursorExpression
-    | expression OR expression     # LogicalOrExpression
+    | NOT expression               # NotExpression
     | expression AND expression    # LogicalAndExpression
-    | NOT expression               # UnaryExpression
+    | expression OR expression     # LogicalOrExpression
     | equality_expression          # EqualityExpression
     ;
 
@@ -1345,17 +1349,28 @@ negated_expression
 */
 
 equality_expression
+    : equality_expression IS NOT?
+      (NULL | NAN | PRESENT | INFINITE | A_LETTER SET | EMPTY | OF TYPE? '(' ONLY? type_spec (',' type_spec)* ')')
+    | equality_expression NOT? 
+      (IN in_elements | BETWEEN between_elements | like_type concatenation like_escape_part?)
+    | equality_expression relational_operator equality_expression
+    | equality_expression multiset_type OF? binary_expression
+    | binary_expression
+    ;
+
+multiset_type
+    : MEMBER
+    | SUBMULTISET
+    ;
+
+/*
+equality_expression
     : multiset_expression (IS NOT?
       (NULL | NAN | PRESENT | INFINITE | A_LETTER SET | EMPTY | OF TYPE? '(' ONLY? type_spec (',' type_spec)* ')'))*
     ;
 
 multiset_expression
     : relational_expression (multiset_type OF? concatenation)?
-    ;
-
-multiset_type
-    : MEMBER
-    | SUBMULTISET
     ;
 
 relational_expression
@@ -1365,8 +1380,9 @@ relational_expression
 
 compound_expression
     : concatenation
-      (NOT? (IN in_elements | BETWEEN between_elements | like_type concatenation like_escape_part?))?
     ;
+*/
+
 relational_operator
     : '=' | not_equal_op | '<' | '>' | less_than_or_equals_op | greater_than_or_equals_op
     ;
@@ -1394,9 +1410,19 @@ between_elements
     ;
 
 concatenation
-    : additive_expression (concatenation_op additive_expression)*
+    // note that originally only included additive expressions...
+    : binary_expression // (concatenation_op binary_expression)*
     ;
 
+binary_expression
+    : binary_expression (AT (LOCAL | TIME ZONE binary_expression) | interval_expression)  # DatetimeExpression
+    | binary_expression op+=('*' | '/') binary_expression           # MultiplyExpression
+    | binary_expression op+=('+' | '-') binary_expression           # AdditiveExpression
+    | binary_expression concatenation_op binary_expression          # ConcatExpression
+    | unary_expression                                              # UnaryExpression
+    ;
+
+/*
 additive_expression
     : multiply_expression (op+=('+' | '-') multiply_expression)*
     ;
@@ -1409,6 +1435,7 @@ datetime_expression
     : model_expression
       (AT (LOCAL | TIME ZONE concatenation) | interval_expression)?
     ;
+*/
 
 interval_expression
     : DAY ('(' concatenation ')')? TO SECOND ('(' concatenation ')')?
@@ -1416,7 +1443,7 @@ interval_expression
     ;
 
 model_expression
-    : unary_expression ('[' model_expression_element ']')?
+    : unary_expression '[' model_expression_element ']'
     ;
 
 model_expression_element
@@ -1445,7 +1472,8 @@ multi_column_for_loop
     ;
 
 unary_expression
-    : ('-' | '+') unary_expression
+    : unary_expression '[' model_expression_element ']'
+    | ('-' | '+') unary_expression
     | PRIOR unary_expression
     | CONNECT_BY_ROOT unary_expression
     | /*TODO {input.LT(1).getText().equalsIgnoreCase("new") && !input.LT(2).getText().equals(".")}?*/ NEW unary_expression
