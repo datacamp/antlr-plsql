@@ -1311,10 +1311,6 @@ seed_part
 // $>
 
 // $<Expression & Condition
-cursor_expression
-    : CURSOR '(' subquery ')'
-    ;
-
 expression_list
     : '(' expression? (',' expression)* ')'
     ;
@@ -1324,10 +1320,14 @@ condition
     ;
 
 expression
-    : cursor_expression
-    | logical_or_expression
+    : CURSOR '(' subquery ')'      # CursorExpression
+    | expression OR expression     # LogicalOrExpression
+    | expression AND expression    # LogicalAndExpression
+    | NOT expression               # UnaryExpression
+    | equality_expression          # EqualityExpression
     ;
 
+/*
 logical_or_expression
     : logical_and_expression
     | logical_or_expression OR logical_and_expression
@@ -1342,6 +1342,7 @@ negated_expression
     : NOT negated_expression
     | equality_expression
     ;
+*/
 
 equality_expression
     : multiset_expression (IS NOT?
