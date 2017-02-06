@@ -220,7 +220,7 @@ non_dml_trigger
 
 trigger_body
     : COMPOUND TRIGGER
-    | CALL id
+    | CALL r_id
     | trigger_block
     ;
 
@@ -416,7 +416,7 @@ modifier_clause
     ;
 
 object_member_spec
-    : id type_spec sqlj_object_type_attr?
+    : r_id type_spec sqlj_object_type_attr?
     | element_spec
     ;
 
@@ -460,7 +460,7 @@ pragma_clause
     ;
 
 pragma_elements
-    : id
+    : r_id
     | DEFAULT
     ;
 
@@ -509,7 +509,7 @@ invoker_rights_clause
     ;
 
 compiler_parameters_clause
-    : id '=' expression
+    : r_id '=' expression
     ;
 
 call_spec
@@ -523,7 +523,7 @@ java_spec
     ;
 
 c_spec
-    : C_LETTER (NAME CHAR_STRING)? LIBRARY id c_agent_in_clause? (WITH CONTEXT)? c_parameters_clause?
+    : C_LETTER (NAME CHAR_STRING)? LIBRARY r_id c_agent_in_clause? (WITH CONTEXT)? c_parameters_clause?
     ;
 
 c_agent_in_clause
@@ -584,8 +584,8 @@ pragma_declaration
     : PRAGMA (SERIALLY_REUSABLE 
     | AUTONOMOUS_TRANSACTION
     | EXCEPTION_INIT '(' exception_name ',' numeric_negative ')'
-    | INLINE '(' id1=id ',' expression ')'
-    | RESTRICT_REFERENCES '(' (id | DEFAULT) (',' id)+ ')') ';'
+    | INLINE '(' id1=r_id ',' expression ')'
+    | RESTRICT_REFERENCES '(' (r_id | DEFAULT) (',' r_id)+ ')') ';'
     ;
 
 record_declaration
@@ -699,7 +699,7 @@ loop_statement
 // $<Loop - Specific Clause
 
 cursor_loop_param
-    : index_name IN REVERSE? lower_bound range='..' upper_bound
+    : index_name IN REVERSE? lower_bound '..' upper_bound
     | record_name IN (cursor_name expression_list? | '(' select_statement ')')
     ;
 // $>
@@ -913,34 +913,28 @@ cycle_clause
     ;
 
 subquery
-    : subquery_basic_elements subquery_operation_part*
+    : '(' subquery ')'
+    | subquery subquery_operation_part subquery
+    | query_block
     ;
 
 subquery_operation_part
-    : (UNION ALL? | INTERSECT | MINUS) subquery_basic_elements
-    ;
-
-subquery_basic_elements
-    : query_block
-    | '(' subquery ')'
+    : (UNION ALL? | INTERSECT | MINUS)
     ;
 
 query_block
-    : SELECT (DISTINCT | UNIQUE | ALL)? ('*' | selected_element (',' selected_element)*)
+    : SELECT pref=(DISTINCT | UNIQUE | ALL)? (expr+=selected_element (',' expr+=selected_element)*)
       into_clause? from_clause where_clause? hierarchical_query_clause? group_by_clause? model_clause?
     ;
 
 selected_element
-    : select_list_elements column_alias?
+    : star                                  # Star1
+    | tableview_name '.' star               # StarTable  // TODO, can '.' '*' be rolled into tableview_name?
+    | expr=expression alias=column_alias?   # Alias_expr
     ;
 
 from_clause
     : FROM table_ref_list
-    ;
-
-select_list_elements
-    : tableview_name '.' '*'
-    | expression
     ;
 
 table_ref_list
@@ -1158,7 +1152,7 @@ update_statement
 // $<Update - Specific Clauses
 update_set_clause
     : SET
-      (column_based_update_set_clause (',' column_based_update_set_clause)* | VALUE '(' id ')' '=' expression)
+      (column_based_update_set_clause (',' column_based_update_set_clause)* | VALUE '(' r_id ')' '=' expression)
     ;
 
 column_based_update_set_clause
@@ -1324,11 +1318,11 @@ condition
     ;
 
 expression
-    : CURSOR '(' subquery ')'      # CursorExpression
-    | NOT expression               # NotExpression
-    | expression AND expression    # LogicalAndExpression
-    | expression OR expression     # LogicalOrExpression
-    | equality_expression          # EqualityExpression
+    : op=CURSOR '(' subquery ')'
+    | op=NOT expression
+    | expression op=AND expression
+    | expression op=OR expression
+    | equality_expression
     ;
 
 /*
@@ -1415,11 +1409,12 @@ concatenation
     ;
 
 binary_expression
-    : binary_expression (AT (LOCAL | TIME ZONE binary_expression) | interval_expression)  # DatetimeExpression
-    | binary_expression op+=('*' | '/') binary_expression           # MultiplyExpression
-    | binary_expression op+=('+' | '-') binary_expression           # AdditiveExpression
-    | binary_expression concatenation_op binary_expression          # ConcatExpression
-    | unary_expression                                              # UnaryExpression
+    // MC-Note: figure out topmost time expression...
+    : binary_expression (AT (LOCAL | TIME ZONE binary_expression) | interval_expression)  # BinaryExpr
+    | left=binary_expression op=('*' | '/') right=binary_expression            # BinaryExpr
+    | left=binary_expression op=('+' | '-') right=binary_expression            # BinaryExpr
+    | left=binary_expression op=CONCATENATION_OP right=binary_expression       # BinaryExpr
+    | unary_expression                                                         # IgnoreBinaryExpr
     ;
 
 /*
@@ -1472,17 +1467,17 @@ multi_column_for_loop
     ;
 
 unary_expression
-    : unary_expression '[' model_expression_element ']'
-    | ('-' | '+') unary_expression
-    | PRIOR unary_expression
-    | CONNECT_BY_ROOT unary_expression
-    | /*TODO {input.LT(1).getText().equalsIgnoreCase("new") && !input.LT(2).getText().equals(".")}?*/ NEW unary_expression
-    |  DISTINCT unary_expression
-    |  ALL unary_expression
-    |  /*TODO{(input.LA(1) == CASE || input.LA(2) == CASE)}?*/ case_statement/*[false]*/
-    |  quantified_expression
-    |  standard_function
-    |  atom
+    : unary_expression '[' model_expression_element ']'      # UnaryExpr
+    | ('-' | '+') unary_expression                           # UnaryExpr
+    | op=PRIOR unary_expression                                 # UnaryExpr
+    | op=CONNECT_BY_ROOT unary_expression                       # UnaryExpr
+    | op=NEW unary_expression                                   # UnaryExpr
+    | op=DISTINCT unary_expression                              # UnaryExpr
+    | op=ALL unary_expression                                   # UnaryExpr
+    | case_statement                                            # IgnoreUnaryExpr
+    | quantified_expression                                     # IgnoreUnaryExpr
+    | standard_function                                         # IgnoreUnaryExpr
+    | atom                                                      # IgnoreUnaryExpr
     ;
 
 case_statement /*TODO [boolean isStatementParameter]
@@ -1553,27 +1548,27 @@ standard_function
     | TRANSLATE '(' expression (USING (CHAR_CS | NCHAR_CS))? (',' expression)* ')'
     | TREAT '(' expression AS REF? type_spec ')'
     | TRIM '(' ((LEADING | TRAILING | BOTH)? quoted_string? FROM)? concatenation ')'
-    | XMLAGG '(' expression order_by_clause? ')' ('.' general_element_part)?
+    | XMLAGG '(' expression order_by_clause? ')' ('.' general_element)?
     | (XMLCOLATTVAL|XMLFOREST)
-      '(' xml_multiuse_expression_element (',' xml_multiuse_expression_element)* ')' ('.' general_element_part)?
+      '(' xml_multiuse_expression_element (',' xml_multiuse_expression_element)* ')' ('.' general_element)?
     | XMLELEMENT 
       '(' (ENTITYESCAPING | NOENTITYESCAPING)? (NAME | EVALNAME)? expression
        (/*TODO{input.LT(2).getText().equalsIgnoreCase("xmlattributes")}?*/ ',' xml_attributes_clause)?
-       (',' expression column_alias?)* ')' ('.' general_element_part)?
+       (',' expression column_alias?)* ')' ('.' general_element)?
     | XMLEXISTS '(' expression xml_passing_clause? ')'
-    | XMLPARSE '(' (DOCUMENT | CONTENT) concatenation WELLFORMED? ')' ('.' general_element_part)?
+    | XMLPARSE '(' (DOCUMENT | CONTENT) concatenation WELLFORMED? ')' ('.' general_element)?
     | XMLPI
-      '(' (NAME id | EVALNAME concatenation) (',' concatenation)? ')' ('.' general_element_part)?
+      '(' (NAME r_id | EVALNAME concatenation) (',' concatenation)? ')' ('.' general_element)?
     | XMLQUERY
-      '(' concatenation xml_passing_clause? RETURNING CONTENT (NULL ON EMPTY)? ')' ('.' general_element_part)?
+      '(' concatenation xml_passing_clause? RETURNING CONTENT (NULL ON EMPTY)? ')' ('.' general_element)?
     | XMLROOT
-      '(' concatenation (',' xmlroot_param_version_part)? (',' xmlroot_param_standalone_part)? ')' ('.' general_element_part)?
+      '(' concatenation (',' xmlroot_param_version_part)? (',' xmlroot_param_standalone_part)? ')' ('.' general_element)?
     | XMLSERIALIZE
       '(' (DOCUMENT | CONTENT) concatenation (AS type_spec)?
       xmlserialize_param_enconding_part? xmlserialize_param_version_part? xmlserialize_param_ident_part? ((HIDE | SHOW) DEFAULTS)? ')'
-      ('.' general_element_part)?
+      ('.' general_element)?
     | XMLTABLE
-      '(' xml_namespaces_clause? concatenation xml_passing_clause? (COLUMNS xml_table_column (',' xml_table_column))? ')' ('.' general_element_part)?
+      '(' xml_namespaces_clause? concatenation xml_passing_clause? (COLUMNS xml_table_column (',' xml_table_column))? ')' ('.' general_element)?
     ;
 
 over_clause_keyword
@@ -1645,7 +1640,7 @@ using_clause
     ;
 
 using_element
-    : (IN OUT? | OUT)? select_list_elements column_alias?
+    : (IN OUT? | OUT)? selected_element column_alias?
     ;
 
 collect_order_by_part
@@ -1746,12 +1741,12 @@ partition_extension_clause
     ;
 
 column_alias
-    : AS? (id | alias_quoted_string)
+    : AS? (r_id | alias_quoted_string)
     | AS
     ;
 
 table_alias
-    : (id | alias_quoted_string)
+    : (r_id | alias_quoted_string)
     ;
 
 alias_quoted_string
@@ -1776,68 +1771,68 @@ into_clause
 // $<Common PL/SQL Named Elements
 
 xml_column_name
-    : id
+    : r_id
     | quoted_string
     ;
 
 cost_class_name
-    : id
+    : r_id
     ;
 
 attribute_name
-    : id
+    : r_id
     ;
 
 savepoint_name
-    : id
+    : r_id
     ;
 
 rollback_segment_name
-    : id
+    : r_id
     ;
 
 table_var_name
-    : id
+    : r_id
     ;
 
 schema_name
-    : id
+    : r_id
     ;
 
 routine_name
-    : id ('.' id_expression)* ('@' link_name)?
+    : r_id ('.' id_expression)* ('@' link_name)?
     ;
 
 package_name
-    : id
+    : r_id
     ;
 
 implementation_type_name
-    : id ('.' id_expression)?
+    : r_id ('.' id_expression)?
     ;
 
 parameter_name
-    : id
+    : r_id
     ;
 
 reference_model_name
-    : id
+    : r_id
     ;
 
 main_model_name
-    : id
+    : r_id
     ;
 
 aggregate_function_name
-    : id ('.' id_expression)*
+    : r_id ('.' id_expression)*
     ;
 
 query_name
-    : id
+    : r_id
     ;
 
 constraint_name
-    : id ('.' id_expression)* ('@' link_name)?
+    : r_id ('.' id_expression)* ('@' link_name)?
     ;
 
 label_name
@@ -1853,59 +1848,65 @@ sequence_name
     ;
 
 exception_name
-    : id ('.' id_expression)* 
+    : r_id ('.' id_expression)* 
     ;
 
 function_name
-    : id ('.' id_expression)?
+    : r_id ('.' id_expression)?
     ;
 
 procedure_name
-    : id ('.' id_expression)?
+    : r_id ('.' id_expression)?
     ;
 
 trigger_name
-    : id ('.' id_expression)?
+    : r_id ('.' id_expression)?
     ;
 
 variable_name
-    : (INTRODUCER char_set_name)? id_expression ('.' id_expression)?
+    : dot_id
     | bind_variable
     ;
 
 index_name
-    : id
+    : r_id
     ;
 
 cursor_name
-    : id
+    : r_id
     | bind_variable
     ;
 
 record_name
-    : id
+    : r_id
     | bind_variable
     ;
 
 collection_name
-    : id ('.' id_expression)?
+    : r_id ('.' id_expression)?
     ;
 
 link_name
-    : id
+    : r_id
     ;
 
 column_name
-    : id ('.' id_expression)*
+    : r_id ('.' id_expression)*
     ;
 
 tableview_name
-    : id ('.' id_expression)? 
-      ('@' link_name | /*TODO{!(input.LA(2) == BY)}?*/ partition_extension_clause)?
+    // MC-NOTE: if tables are always of form x.y, may want to replace r_id
+    //          official parser seems to put linking under expressions
+    : dot_id
+      ('@' link_name | partition_extension_clause)?
     ;
 
-char_set_name
-    : id_expression ('.' id_expression)*
+dot_id
+    : fields+=id_expression ('.' fields+=id_expression)*
+    ;
+
+star
+    : '*'
     ;
 
 // $>
@@ -1936,7 +1937,7 @@ respect_or_ignore_nulls
     ;
 
 argument
-    : (id '=' '>')? expression
+    : (r_id '=' '>')? expression
     ;
 
 type_spec
@@ -2013,19 +2014,16 @@ native_datatype_element
 bind_variable
     : (BINDVAR | ':' UNSIGNED_INTEGER)
       (INDICATOR? (BINDVAR | ':' UNSIGNED_INTEGER))?
-      ('.' general_element_part)*
+      ('.' general_element)*
     ;
 
 general_element
-    : general_element_part ('.' general_element_part)*
-    ;
-
-general_element_part
-    : (INTRODUCER char_set_name)? id_expression ('.' id_expression)* function_argument?
+    : dot_id function_argument     # FuncCall
+    | dot_id                       # Identifier
     ;
 
 table_element
-    : (INTRODUCER char_set_name)? id_expression ('.' id_expression)*
+    : dot_id
     ;
 
 // $>
@@ -2034,7 +2032,7 @@ table_element
 
 constant
     : TIMESTAMP (quoted_string | bind_variable) (AT TIME ZONE quoted_string)?
-    | INTERVAL (quoted_string | bind_variable | general_element_part)
+    | INTERVAL (quoted_string | bind_variable | general_element)
       (DAY | HOUR | MINUTE | SECOND)
       ('(' (UNSIGNED_INTEGER | bind_variable) (',' (UNSIGNED_INTEGER | bind_variable) )? ')')?
       (TO ( DAY | HOUR | MINUTE | SECOND ('(' (UNSIGNED_INTEGER | bind_variable) ')')?))?
@@ -2066,8 +2064,8 @@ quoted_string
     | NATIONAL_CHAR_STRING_LIT
     ;
 
-id
-    : (INTRODUCER char_set_name)? id_expression
+r_id
+    : dot_id
     ;
 
 id_expression
