@@ -16,37 +16,40 @@ class AstNode:
     def __init__(self, ctx, visitor):
         _ctx = ctx
 
-        any_match = False
         for mapping in self._fields:
+            # parse mapping for -> and indices [] -----
             k, *name = mapping.split('->')
-            if name: k = name[0]
+            name = k if not name else name[0]
 
+            # get node -----
             print(k)
-            child = getattr(ctx, k)
-            
-
+            child = getattr(ctx, k, getattr(ctx, name, None))
+            # when not alias needs to be called
             if callable(child): child = child()
+            # when alias set on token, need to go from CommonToken -> Terminal Node
             elif isinstance(child, CommonToken):
                 # giving a name to lexer rules sets it to a token,
                 # rather than the terminal node corresponding to that token
                 # so we need to find it in children
                 child = next(filter(lambda c: getattr(c, 'symbol', None) is child, ctx.children))
 
+            # set attr -----
             if isinstance(child, list):
-                any_match = True
-                setattr(self, k, [visitor.visit(el) for el in child])
+                setattr(self, name, [visitor.visit(el) for el in child])
             elif child:
-                any_match = True
-                setattr(self, k, visitor.visit(child))
+                setattr(self, name, visitor.visit(child))
             else:
-                setattr(self, k, child)
+                setattr(self, name, child)
+
+    def _get_field_names(self):
+        return [el.split('->')[-1] for el in self._fields]
 
     def __str__(self):
-        els = [k for k in self._fields if getattr(self, k) is not None]
+        els = [k for k in self._get_field_names() if getattr(self, k) is not None]
         return "{}: {}".format(self.__class__.__name__, ", ".join(els))
 
     def __repr__(self):
-        field_reps = {k: repr(getattr(self, k)) for k in self._fields}
+        field_reps = {k: repr(getattr(self, k)) for k in self._get_field_names()}
         args = ", ".join("{} = {}".format(k, v) for k, v in field_reps.items())
         return "{}({})".format(self.__class__.__name__, args)
             
@@ -95,6 +98,7 @@ class AstVisitor(plsqlVisitor):
 
         if len(result) == 1: return result[0]
         elif len(result) == 0: return None
+        elif all(isinstance(res, str) for res in result): return " ".join(result)
         else: return Unshaped(node, result)
 
     def defaultResult(self):
@@ -126,10 +130,7 @@ class AstVisitor(plsqlVisitor):
         if ctx.alias:
             return AliasExpr(ctx, self)
         else:
-            return self.visitChildren(ctx, predicate=lambda n: n is not ctx.alias)
-
-    def visitExpression(self, ctx):
-        
+            return self.visitChildren(ctx)
 
     def visitBinaryExpr(self, ctx):
         return BinaryExpr(ctx, self)
@@ -137,16 +138,45 @@ class AstVisitor(plsqlVisitor):
     def visitUnaryExpr(self, ctx):
         return UnaryExpr(ctx, self)
 
+    #def visitIs_part(self, ctx):
+    #    return ctx
+
+    # many outer label visitors ----------------------------------------------
+
+    # expression conds
+    visitIsExpr =     visitBinaryExpr
+    #visitInExpr =    visitBinaryExpr
+    visitRelExpr =    visitBinaryExpr
+    visitMemberExpr = visitBinaryExpr
+    visitCursorExpr = visitUnaryExpr
+    visitNotExpr =    visitUnaryExpr
+    visitAndExpr =    visitBinaryExpr
+    visitOrExpr =     visitBinaryExpr
+
+
+    def visitExpression(self, ctx):
+        if (ctx.left and ctx.right):
+            return BinaryExpr(ctx, selef)
+        elif ctx.expression:
+            return UnaryExpr(ctx, self)
+        else:
+            return self.visitChildren(ctx)
+
     # simple dropping of tokens ------
     
     def visitWhere_clause(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.WHERE())
 
+    def visitFrom_clause(self, ctx):
+        return  self.visitChildren(ctx, predicate = lambda n: n is not ctx.FROM())
+
+    def visitColumn_alias(self, ctx):
+        return self.visitChildren(ctx, predicate = lambda n: n is not ctx.AS())
 
 
 
 
-input_stream = InputStream("""SELECT DISTINCT id, artists.name as name2 FROM artists WHERE id + 1 AND name || 'greg' """)
+input_stream = InputStream("""SELECT DISTINCT CURSOR (SELECT id FROM artists), artists.name as name2 FROM artists WHERE id + 1 AND name || 'greg' """)
 
 lexer = plsqlLexer(input_stream)
 token_stream = CommonTokenStream(lexer)

@@ -1318,13 +1318,31 @@ condition
     ;
 
 expression
-    : op=CURSOR '(' subquery ')'
-    | op=NOT expression
-    | expression op=AND expression
-    | expression op=OR expression
-    | equality_expression
+    : left=expression op=IS right=is_part                                     # IsExpr
+    | expression in_part                                                      # InExpr
+    | left=expression op=relational_operator right=expression                 # RelExpr
+    | left=expression op=(MEMBER | SUBMULTISET) OF? right=binary_expression   # MemberExpr
+    | op=CURSOR expr=cursor_part                                              # CursorExpr
+    | op=NOT expr=expression                                                  # NotExpr
+    | left=expression op=AND right=expression                                 # AndExpr
+    | left=expression op=OR  right=expression                                 # OrExpr
+    | binary_expression                                                       # IgnoreExpr
     ;
 
+is_part
+    : NOT? (
+        NULL | NAN | PRESENT | INFINITE | A_LETTER SET | EMPTY | 
+        OF TYPE? '(' ONLY? type_spec (',' type_spec)* ')'
+        )
+    ;
+
+in_part
+    : NOT? (IN in_elements | BETWEEN between_elements | like_type concatenation like_escape_part?)
+    ;
+
+cursor_part
+    : '(' subquery ')'
+    ;
 /*
 logical_or_expression
     : logical_and_expression
@@ -1341,16 +1359,6 @@ negated_expression
     | equality_expression
     ;
 */
-
-equality_expression
-    : equality_expression IS NOT?
-      (NULL | NAN | PRESENT | INFINITE | A_LETTER SET | EMPTY | OF TYPE? '(' ONLY? type_spec (',' type_spec)* ')')
-    | equality_expression NOT? 
-      (IN in_elements | BETWEEN between_elements | like_type concatenation like_escape_part?)
-    | equality_expression relational_operator equality_expression
-    | equality_expression multiset_type OF? binary_expression
-    | binary_expression
-    ;
 
 multiset_type
     : MEMBER
