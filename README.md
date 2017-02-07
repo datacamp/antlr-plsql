@@ -1,3 +1,9 @@
+# sqlwhat
+
+First steps in sqlwhat
+
+## Notes michael
+
 Setup ANTLR grammar
 -------------------
 

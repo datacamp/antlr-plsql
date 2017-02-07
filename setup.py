@@ -4,7 +4,6 @@ from setuptools import setup
 
 setup(
 	name='sqlwhat',
-	version='0.0.0',
+	version='0.0.3',
 	packages=['sqlwhat'],
-	install_requires=['pythonwhat']
-)
+	install_requires=['pythonwhat'])
