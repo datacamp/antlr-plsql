@@ -62,7 +62,8 @@ Vagrant.configure(2) do |config|
   # end
 
   script = <<-EOF
-    export ANTLR4="/usr/local/lib/antlr-4.6-complete.jar"
+    #export ANTLR4="/usr/local/lib/antlr-4.6-complete.jar"
+    export ANTLR4="/usr/local/lib/antlr4-4.6.1-SNAPSHOT-complete.jar"
     export CLASSPATH=".:$ANTLR4:$CLASSPATH"
     alias antlr4="java -Xmx500M org.antlr.v4.Tool"
     alias grun="java org.antlr.v4.runtime.misc.TestRig"
@@ -73,9 +74,20 @@ Vagrant.configure(2) do |config|
   # documentation for more information about their specific syntax and use.
   config.vm.provision "shell", inline: <<-SHELL
     sudo apt-get update
-    sudo apt-get install -y build-essential default-jdk python3.5-dev python-pip
-    cd /usr/local/lib
-    sudo curl -O http://www.antlr.org/download/antlr-4.6-complete.jar
+    sudo apt-get install -y build-essential default-jdk python3.5-dev python-pip maven
+    #
+    # NOTE: replacing download with manual build for now
+    # cd /usr/local/lib
+    # sudo curl -O http://www.antlr.org/download/antlr-4.6-complete.jar
+    #
+    # Manual Build ---
+    git clone https://github.com/antlr/antlr4.git
+    cd antlr4
+    export MAVEN_OPTS="-Xmx1G"
+    mvn -DskipTests install
+    mv ~/.m2/repository/org/antlr/antlr4/4.6.1-SNAPSHOT/antlr4-4.6.1-SNAPSHOT-complete.jar /usr/local/lib
+    #
+    #
     cd /tmp
     echo '#{script}' > antlr4.sh
     sudo mv antlr4.sh /etc/profile.d/antlr4.sh
