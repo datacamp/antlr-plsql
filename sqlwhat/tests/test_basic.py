@@ -1,5 +1,4 @@
 from sqlwhat.test_exercise import test_exercise as te
-from helper import MockProcess
 
 def test_pass():
     result = [['id', 'name'], [1, 'greg']]
@@ -8,9 +7,10 @@ def test_pass():
         student_code = "SELECT * FROM company",
         solution_code = "SELECT * FROM company",
         pre_exercise_code = "",
-        student_process = MockProcess(result),
-        solution_process = MockProcess(result),
-        raw_student_output = "TODO",
+        student_conn = None,
+        solution_conn = None,
+        student_result = result,
+        solution_result = result,
         ex_type="NormalExercise",
         error=[]
         )
@@ -25,9 +25,10 @@ def test_fail():
         student_code = "SELECT * FROM company",
         solution_code = "SELECT * FROM company",
         pre_exercise_code = "",
-        student_process = MockProcess(stu_result),
-        solution_process = MockProcess(sol_result),
-        raw_student_output = "TODO",
+        student_conn = None,
+        solution_conn = None,
+        student_result = stu_result,
+        solution_result = sol_result,
         ex_type="NormalExercise",
         error=[]
         )

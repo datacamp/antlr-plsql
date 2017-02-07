@@ -2,7 +2,6 @@ from sqlwhat import check_funcs
 from sqlwhat.State import State
 from pythonwhat.Reporter import Reporter
 from pythonwhat.Test import TestFail as TF
-from helper import MockProcess
 import pytest
 
 def test_pass():
@@ -10,9 +9,10 @@ def test_pass():
         student_code = "SELECT * FROM company",
         solution_code = "SELECT * FROM company",
         pre_exercise_code = "",
-        student_process = MockProcess([['id', 'name'], [1, 'greg']]),
-        solution_process = MockProcess([['id', 'name'], [1, 'greg']]),
-        raw_student_output = "TODO",
+        student_result = [['id', 'name'], [1, 'greg']],
+        solution_result = [['id', 'name'], [1, 'greg']],
+        student_conn = None,
+        solution_conn = None,
         reporter= Reporter())
 
     State.root_state = state
@@ -24,9 +24,10 @@ def test_fail():
         student_code = "SELECT * FROM company",
         solution_code = "SELECT * FROM company",
         pre_exercise_code = "",
-        student_process = MockProcess([['id', 'name'], [1, 'greg']]),
-        solution_process = MockProcess([['id', 'name'], [0, 'greg']]),
-        raw_student_output = "TODO",
+        student_result = [['id', 'name'], [1, 'greg']],
+        solution_result = [['id', 'name'], [0, 'greg']],
+        student_conn = None,
+        solution_conn = None,
         reporter= Reporter())
 
     State.root_state = state

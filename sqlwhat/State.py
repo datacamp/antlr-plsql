@@ -3,16 +3,11 @@ class State:
                  student_code,
                  solution_code,
                  pre_exercise_code,
-                 student_process,
-                 solution_process,
-                 raw_student_output,
+                 student_conn,
+                 solution_conn,
+                 student_result,
+                 solution_result,
                  reporter):
 
         for k,v in locals().items():
             if k != 'self': setattr(self, k, v)
-
-        # TODO get connection and last result
-        self.student_result  = student_process.getLastQueryResult()
-        self.solution_result = solution_process.getLastQueryResult()
-                 
-

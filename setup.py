@@ -6,5 +6,5 @@ setup(
 	name='sqlwhat',
 	version='0.0.0',
 	packages=['sqlwhat'],
-	install_requires=[]
+	install_requires=['pythonwhat']
 )

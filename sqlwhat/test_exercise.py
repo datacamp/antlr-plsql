@@ -5,11 +5,12 @@ from pythonwhat.Reporter import Reporter
 
 def test_exercise(sct,
                   student_code,
+                  student_result,
+                  student_conn,
                   solution_code,
+                  solution_result,
+                  solution_conn,
                   pre_exercise_code,
-                  student_process,
-                  solution_process,
-                  raw_student_output,
                   ex_type,
                   error):
     """
@@ -20,9 +21,10 @@ def test_exercise(sct,
         student_code = student_code,
         solution_code = solution_code,
         pre_exercise_code = pre_exercise_code,
-        student_process = student_process,
-        solution_process = solution_process,
-        raw_student_output = raw_student_output,
+        student_conn = student_conn,
+        solution_conn = solution_conn,
+        student_result = student_result,
+        solution_result = solution_result,
         reporter = Reporter())
 
     State.root_state = state

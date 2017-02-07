@@ -19,7 +19,7 @@ def check_correct(index, state=None):
     pass
 
 def check_result(msg="Incorrect result.", state=None):
-    stu_res = state.student_process.getLastQueryResult()
-    sol_res = state.solution_process.getLastQueryResult()
+    stu_res = state.student_result
+    sol_res = state.solution_result
     if stu_res != sol_res:
         state.reporter.do_test(Test(msg))
