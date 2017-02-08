@@ -1,10 +1,10 @@
 # Ignore java files
 *.java
 *.class
-
 # Vim swapfiles
 .*.swp
 
+# Python ----------------------------------------------------------------------
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -72,6 +72,6 @@ target/
 # pyenv
 .python-version
 
-# Mac stuff
+# Mac stuff -------------------------------------------------------------------
 .DS_Store
 tests/.DS_Store

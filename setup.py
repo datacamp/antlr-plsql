@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(
 	name='sqlwhat',
-	version='0.0.2',
+	version='0.0.3',
 	packages=['sqlwhat'],
-	install_requires=[]
-)
+	install_requires=['pythonwhat'])
