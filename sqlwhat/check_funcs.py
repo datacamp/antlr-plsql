@@ -24,9 +24,13 @@ def check_result(msg="Incorrect result.", state=None):
     if stu_res != sol_res:
         state.reporter.do_test(Test(msg))
 
+    return state
+
 def test_mc(correct, msgs, state=None):
     ctxt = {}
     exec(state.student_code, globals(), ctxt)
     if ctxt['solution_option'] != correct:
         state.reporter.do_test(Test(msgs[correct-1]))
+
+    return state
 
