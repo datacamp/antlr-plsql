@@ -62,11 +62,9 @@ Vagrant.configure(2) do |config|
   # end
 
   script = <<-EOF
-    #export ANTLR4="/usr/local/lib/antlr-4.6-complete.jar"
     export ANTLR4="/usr/local/lib/antlr4-4.6.1-SNAPSHOT-complete.jar"
     export CLASSPATH=".:$ANTLR4:$CLASSPATH"
-    alias antlr4="java -Xmx500M org.antlr.v4.Tool"
-    alias grun="java org.antlr.v4.runtime.misc.TestRig"
+    java -Xmx500M org.antlr.v4.Tool \$@
   EOF
 
   # Enable provisioning with a shell script. Additional provisioners such as
@@ -88,8 +86,12 @@ Vagrant.configure(2) do |config|
     mv ~/.m2/repository/org/antlr/antlr4/4.6.1-SNAPSHOT/antlr4-4.6.1-SNAPSHOT-complete.jar /usr/local/lib
     #
     #
-    cd /tmp
-    echo '#{script}' > antlr4.sh
-    sudo mv antlr4.sh /etc/profile.d/antlr4.sh
+    mkdir -p tmp_scripts && cd tmp_scripts
+    export ANTLR4="/usr/local/lib/antlr4-4.6.1-SNAPSHOT-complete.jar"
+    export CLASSPATH=".:$ANTLR4:$CLASSPATH"
+    echo '#{script}' > antlr4
+    echo "java org.antlr.v4.runtime.misc.TestRig \$@" > grun
+    sudo chmod 777 antlr4 grun
+    sudo mv antlr4 grun /usr/local/bin
   SHELL
 end
