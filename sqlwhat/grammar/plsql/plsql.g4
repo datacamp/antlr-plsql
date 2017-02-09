@@ -923,7 +923,8 @@ subquery_operation_part
     ;
 
 query_block
-    : SELECT pref=(DISTINCT | UNIQUE | ALL)? (expr+=selected_element (',' expr+=selected_element)*)
+    // MC-Note: from_clause should be optional
+    : SELECT pref=(DISTINCT | UNIQUE | ALL)? (target_list+=selected_element (',' target_list+=selected_element)*)
       into_clause? from_clause where_clause? hierarchical_query_clause? group_by_clause? model_clause?
     ;
 
@@ -1475,8 +1476,8 @@ multi_column_for_loop
     ;
 
 unary_expression
-    : unary_expression '[' model_expression_element ']'      # UnaryExpr
-    | ('-' | '+') unary_expression                           # UnaryExpr
+    : unary_expression op='[' model_expression_element ']'      # UnaryExpr
+    | op=('-' | '+') unary_expression                           # UnaryExpr
     | op=PRIOR unary_expression                                 # UnaryExpr
     | op=CONNECT_BY_ROOT unary_expression                       # UnaryExpr
     | op=NEW unary_expression                                   # UnaryExpr

@@ -1,5 +1,7 @@
 # sqlwhat
 
+[![Build Status](https://travis-ci.org/datacamp/sqlwhat.svg?branch=master)](https://travis-ci.org/datacamp/sqlwhat)
+
 First steps in sqlwhat
 
 ## Notes michael

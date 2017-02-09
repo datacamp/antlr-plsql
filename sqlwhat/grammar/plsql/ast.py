@@ -3,16 +3,32 @@ from antlr4.Token import CommonToken
 from antlr4.InputStream import InputStream
 from antlr4 import FileStream, CommonTokenStream
 
-from plsqlLexer import plsqlLexer
-from plsqlParser import plsqlParser
-from plsqlVisitor import plsqlVisitor
+from .plsqlLexer import plsqlLexer
+from .plsqlParser import plsqlParser
+from .plsqlVisitor import plsqlVisitor
 
-# AST -------
-# TODO: Unary expressions
-#       visitChildren returns Raw node if receives > result
+# AST -------------------------------------------------------------------------
+# TODO: Finish Unary+Binary Expr
+#       sql_script
 #       _dump method for each node, starting with smallest
 
+def parse(sql_text, start='sql_script'):
+    input_stream = InputStream(sql_text)
+
+    lexer = plsqlLexer(input_stream)
+    token_stream = CommonTokenStream(lexer)
+    parser = plsqlParser(token_stream)
+    ast = AstVisitor()     
+    # TODO: may also want to construct ast from expression
+    return ast.visit(getattr(parser, start)())
+
+
+
 class AstNode:
+    # contains child nodes to visit
+    _fields = []
+
+    # default visiting behavior, which uses fields
     def __init__(self, ctx, visitor):
         _ctx = ctx
 
@@ -22,7 +38,7 @@ class AstNode:
             name = k if not name else name[0]
 
             # get node -----
-            print(k)
+            #print(k)
             child = getattr(ctx, k, getattr(ctx, name, None))
             # when not alias needs to be called
             if callable(child): child = child()
@@ -61,8 +77,13 @@ class Unshaped(AstNode):
         self.arr = arr
         self._ctx = ctx
 
+class Script(AstNode):
+    _fields = ['body']
+    def __init__(self, ctx, visitor):
+        self.body = [visitor.visit(child) for child in ctx.children[:-1]]
+
 class SelectStmt(AstNode):
-    _fields = ['pref', 'expr', 'into_clause', 'from_clause', 'where_clause',
+    _fields = ['pref', 'target_list', 'into_clause', 'from_clause', 'where_clause',
                'hierarchical_query_clause', 'group_by_clause', 'model_clause']
 
 class Identifier(AstNode):
@@ -80,7 +101,7 @@ class BinaryExpr(AstNode):
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
 
-# VISITOR -----------
+# PARSE TREE VISITOR ----------------------------------------------------------
 
 class AstVisitor(plsqlVisitor):
     def visitChildren(self, node, predicate=None):
@@ -108,11 +129,14 @@ class AstVisitor(plsqlVisitor):
         aggregate.append(nextResult)
         return aggregate
 
-    def visitQuery_block(self, ctx):
-        return SelectStmt(ctx, self)
-
     def visitTerminal(self, ctx):
         return ctx.getText()
+
+    def visitSql_script(self, ctx):
+        return Script(ctx, self)
+
+    def visitQuery_block(self, ctx):
+        return SelectStmt(ctx, self)
 
     def visitDot_id(self, ctx):
         return Identifier(ctx, self)
@@ -162,7 +186,7 @@ class AstVisitor(plsqlVisitor):
         else:
             return self.visitChildren(ctx)
 
-    # simple dropping of tokens ------
+    # simple dropping of tokens -----------------------------------------------
     
     def visitWhere_clause(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.WHERE())
@@ -173,17 +197,28 @@ class AstVisitor(plsqlVisitor):
     def visitColumn_alias(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.AS())
 
+    # converting case insensitive keywords to lowercase -----------------------
+
+    def visitRegular_id(self, ctx):
+        # will be a single terminal node
+        return self.visitChildren(ctx).lower()
+
+    visitOver_clause_keyword = visitRegular_id
+    visitWithin_or_over_clause_keyword = visitRegular_id
 
 
 
-input_stream = InputStream("""SELECT DISTINCT CURSOR (SELECT id FROM artists), artists.name as name2 FROM artists WHERE id + 1 AND name || 'greg' """)
 
-lexer = plsqlLexer(input_stream)
-token_stream = CommonTokenStream(lexer)
-parser = plsqlParser(token_stream)
-#tree = parser.sql_script()
-ast = AstVisitor()     
-select = ast.visit(parser.query_block())
-#ctx = ast.visit(parser.dot_id())
+if __name__ == '__main__':
+    # for testing during development
+    input_stream = InputStream("""SELECT DISTINCT CURSOR (SELECT id FROM artists), artists.name as name2 FROM artists WHERE id + 1 AND name || 'greg' """)
+
+    lexer = plsqlLexer(input_stream)
+    token_stream = CommonTokenStream(lexer)
+    parser = plsqlParser(token_stream)
+    #tree = parser.sql_script()
+    ast = AstVisitor()     
+    select = ast.visit(parser.sql_script())
+    #ctx = ast.visit(parser.dot_id())
 
 
