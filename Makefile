@@ -1,5 +1,7 @@
 .PHONY: clean
 
+all: clean test
+
 build:
 	antlr4 -Dlanguage=Python3 -visitor sqlwhat/grammar/plsql/plsql.g4
 
