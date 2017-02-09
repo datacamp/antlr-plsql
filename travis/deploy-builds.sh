@@ -3,6 +3,11 @@ if [ -n "${TRAVIS_TAG}" ]; then
 else
     TARGET="commit ${TRAVIS_COMMIT}"
 fi
+if [ "${TRAVIS_BRANCH}" = "master" ]; then
+    BRANCH="builds"
+else
+    BRANCH="builds-dev"
+fi
 
 # Set up a temporary folder to prepare distribution files.
 TMP=~/tmp
@@ -12,12 +17,15 @@ cp -r . $TMP/
 rm -rf $TMP/.git
 
 # Specifically fetch and check out the prebuilt/module branch from origin.
-git fetch origin +refs/heads/builds:refs/remotes/origin/builds
-git checkout -b builds -t origin/builds
+git fetch origin +refs/heads/$BRANCH:refs/remotes/origin/$BRANCH
+git checkout -b $BRANCH -t origin/$BRANCH
 # Remove everything so we can fully replace it. Git will create the diffs.
 rm -fr *
+# move in contents from build directory
 mv $TMP/* .
+mv $TMP/.* .
+
 git add --all *
-git commit -m "Prebuilt module for ${TARGET}"
-git push -u origin builds
-rmdir $TMP
+git commit -m "Build for ${TARGET}"
+git push -u origin $BRANCH
+rm -rf $TMP
