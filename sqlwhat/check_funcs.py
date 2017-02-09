@@ -9,7 +9,7 @@ cs.ATTR_SCTS = globals()
 def Ex(state=None):
     return Chain(state or State.root_state)
 
-def check_statement(index, state=None):
+def check_statement(name, index=0, missing_msg="missing statement", state=None):
     pass
 
 def check_clause(index, state=None):
@@ -25,6 +25,9 @@ def check_result(msg="Incorrect result.", state=None):
         state.reporter.do_test(Test(msg))
 
     return state
+
+def has_equal_ast(msg, state=None):
+    pass
 
 def test_mc(correct, msgs, state=None):
     ctxt = {}

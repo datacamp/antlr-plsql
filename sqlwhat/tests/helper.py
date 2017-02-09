@@ -1,4 +1,3 @@
-from sqlbackend.Exercise import Exercise
 
 def get_sct_payload(output):
     output = [out for out in output if out['type'] == 'sct']
@@ -9,6 +8,7 @@ def get_sct_payload(output):
         return(None)
 
 def run(data):
+    from sqlbackend.Exercise import Exercise
     exercise = Exercise(data)
     output = exercise.runInit()
     if 'backend-error' in str(output):
