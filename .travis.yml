@@ -6,4 +6,4 @@ services:
 before_install:
   - docker build -t sqlwhat .
 
-script: docker run sqlwhat make clean test
+script: docker run sqlwhat make clean build test deploy

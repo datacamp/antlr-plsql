@@ -8,3 +8,6 @@ clean:
 
 test:
 	pytest -m "not backend"
+
+deploy:
+	travis/deploy-builds.sh
