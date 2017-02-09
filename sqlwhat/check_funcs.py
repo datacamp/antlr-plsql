@@ -26,8 +26,11 @@ def check_result(msg="Incorrect result.", state=None):
 
     return state
 
-def has_equal_ast(msg, state=None):
-    pass
+def has_equal_ast(msg="Incorrect AST", state=None):
+    if repr(state.student_ast) != repr(state.solution_ast):
+        state.reporter.do_test(Test(msg))
+
+    return state
 
 def test_mc(correct, msgs, state=None):
     ctxt = {}
