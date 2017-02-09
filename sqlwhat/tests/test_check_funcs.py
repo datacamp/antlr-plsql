@@ -23,7 +23,7 @@ def test_has_equal_ast_pass_clause_caps():
     has_equal_ast(state=state)
 
 def test_has_equal_ast_pass_spacing():
-    state = prepare_state("SELECT id,name from Trips", "SELECT id,name FROM Trips")
+    state = prepare_state("SELECT id,name from Trips", "SELECT id, name FROM Trips")
     has_equal_ast(state=state)
 
 def test_has_equal_ast_pass_unparsed():
