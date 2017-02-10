@@ -6,4 +6,5 @@ services:
 before_install:
   - docker build -t sqlwhat .
 
-script: docker run sqlwhat make clean test
+script: docker run sqlwhat make build test
+after_script: '([ "${TRAVIS_BRANCH}" = "dev" ] || [ "${TRAVIS_BRANCH}" = "master" ]) && docker run -e GH_TOKEN -e TRAVIS_BRANCH -e TRAVIS_TAG -e TRAVIS_COMMIT sqlwhat make deploy'
