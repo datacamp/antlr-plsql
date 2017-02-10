@@ -22,10 +22,13 @@ git stash --include-untracked
 git fetch origin +refs/heads/$BRANCH:refs/remotes/origin/$BRANCH
 git checkout -b $BRANCH -t origin/$BRANCH
 # Remove everything so we can fully replace it. Git will create the diffs.
-rm -fr *
+git rm -fr *
 # move in contents from build directory
 mv $TMP/* .
 mv $TMP/.* .
+
+# clean out uneccessary build and cache files
+make clean
 
 git add --all *
 git commit -m "Build for ${TARGET}"
