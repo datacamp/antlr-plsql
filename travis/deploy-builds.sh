@@ -16,6 +16,8 @@ mkdir $TMP
 cp -r . $TMP/
 rm -rf $TMP/.git
 
+git stash --include-untracked
+
 # Specifically fetch and check out the prebuilt/module branch from origin.
 git fetch origin +refs/heads/$BRANCH:refs/remotes/origin/$BRANCH
 git checkout -b $BRANCH -t origin/$BRANCH
