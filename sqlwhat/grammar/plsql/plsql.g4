@@ -1328,6 +1328,7 @@ expression
     | left=expression op=AND right=expression                                 # AndExpr
     | left=expression op=OR  right=expression                                 # OrExpr
     | binary_expression                                                       # IgnoreExpr
+    | '(' expression ')'                                                      # ParenExpr
     ;
 
 is_part
@@ -1423,6 +1424,7 @@ binary_expression
     | left=binary_expression op=('*' | '/') right=binary_expression            # BinaryExpr
     | left=binary_expression op=('+' | '-') right=binary_expression            # BinaryExpr
     | left=binary_expression op=CONCATENATION_OP right=binary_expression       # BinaryExpr
+    | '(' binary_expression ')'                                                # ParenBinaryExpr
     | unary_expression                                                         # IgnoreBinaryExpr
     ;
 
@@ -1526,7 +1528,8 @@ atom
     | bind_variable
     | constant
     | general_element
-    | '(' (subquery ')' subquery_operation_part* | expression_or_vector ')')
+    | '(' atom ')'
+    | ('(' subquery ')' | expression_list) // Note latter has mandatory parens also
     ;
 
 expression_or_vector
