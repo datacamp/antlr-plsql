@@ -2,6 +2,8 @@ from pythonwhat import check_syntax as cs
 from pythonwhat.check_syntax import Chain
 from pythonwhat.Test import TestFail, Test
 from sqlwhat.State import State
+from sqlwhat.selectors import dispatch
+from functools import partial
 
 # TODO: should be defined on chain class, rather than module level in pw
 cs.ATTR_SCTS = globals()
@@ -10,7 +12,17 @@ def Ex(state=None):
     return Chain(state or State.root_state)
 
 def check_statement(name, index=0, missing_msg="missing statement", state=None):
-    pass
+    df = partial(dispatch, 'statement', name, slice(None))
+
+    stu_stmt_list = df(state.student_ast)
+    try: stu_stmt = stu_stmt_list[index]
+    except IndexError: state.reporter.do_test(Test(missing_msg))
+
+    sol_stmt_list = df(state.solution_ast) 
+    try: sol_stmt = sol_stmt_list[index]
+    except IndexError: raise IndexError("Can't get %s statement at index %s"%(name, index))
+
+    return state.to_child(student_ast = stu_stmt, solution_ast = sol_stmt)
 
 def check_clause(index, state=None):
     pass

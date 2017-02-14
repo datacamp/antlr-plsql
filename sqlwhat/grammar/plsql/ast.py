@@ -1,4 +1,6 @@
 import sys
+from ast import AST
+from antlr4.tree import Tree
 from antlr4.Token import CommonToken
 from antlr4.InputStream import InputStream
 from antlr4 import FileStream, CommonTokenStream
@@ -24,9 +26,9 @@ def parse(sql_text, start='sql_script'):
 
 
 
-class AstNode:
-    # contains child nodes to visit
-    _fields = []
+class AstNode(AST):         # AST is subclassed only so we can use ast.NodeVisitor...
+    _fields = []            # contains child nodes to visit
+    _priority = 1           # whether to descend for selection (greater descends into lower)
 
     # default visiting behavior, which uses fields
     def __init__(self, ctx, visitor):
@@ -65,7 +67,7 @@ class AstNode:
         return "{}: {}".format(self.__class__.__name__, ", ".join(els))
 
     def __repr__(self):
-        field_reps = {k: repr(getattr(self, k)) for k in self._get_field_names()}
+        field_reps = {k: repr(getattr(self, k)) for k in self._get_field_names() if getattr(self, k) is not None}
         args = ", ".join("{} = {}".format(k, v) for k, v in field_reps.items())
         return "{}({})".format(self.__class__.__name__, args)
             
@@ -79,12 +81,16 @@ class Unshaped(AstNode):
 
 class Script(AstNode):
     _fields = ['body']
+    _priority = 0
+
     def __init__(self, ctx, visitor):
         self.body = [visitor.visit(child) for child in ctx.children[:-1]]
 
 class SelectStmt(AstNode):
     _fields = ['pref', 'target_list', 'into_clause', 'from_clause', 'where_clause',
                'hierarchical_query_clause', 'group_by_clause', 'model_clause']
+
+    _priority = 1
 
 class Identifier(AstNode):
     _fields = ['fields']
@@ -178,13 +184,13 @@ class AstVisitor(plsqlVisitor):
     visitOrExpr =     visitBinaryExpr
 
 
-    def visitExpression(self, ctx):
-        if (ctx.left and ctx.right):
-            return BinaryExpr(ctx, selef)
-        elif ctx.expression:
-            return UnaryExpr(ctx, self)
-        else:
-            return self.visitChildren(ctx)
+    #def visitExpression(self, ctx):
+    #    if (ctx.left and ctx.right):
+    #        return BinaryExpr(ctx, selef)
+    #    elif ctx.expression:
+    #        return UnaryExpr(ctx, self)
+    #    else:
+    #        return self.visitChildren(ctx)
 
     # simple dropping of tokens -----------------------------------------------
     
@@ -205,6 +211,21 @@ class AstVisitor(plsqlVisitor):
 
     visitOver_clause_keyword = visitRegular_id
     visitWithin_or_over_clause_keyword = visitRegular_id
+
+    # removing parentheses ----------------------------------------------------
+
+    @staticmethod
+    def _exclude_parens(node):
+        return not isinstance(node, Tree.TerminalNodeImpl)
+
+    def visitAtom(self, ctx): 
+        return self.visitChildren(ctx, predicate = self._exclude_parens)
+
+    visitParenExpr = visitAtom
+    visitParenBinaryExpr = visitAtom
+
+
+
 
 
 

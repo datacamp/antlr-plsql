@@ -23,7 +23,7 @@ def test_has_equal_ast_pass_clause_caps():
     has_equal_ast(state=state)
 
 def test_has_equal_ast_pass_spacing():
-    state = prepare_state("SELECT id,name from Trips", "SELECT id,name FROM Trips")
+    state = prepare_state("SELECT id,name from Trips", "SELECT id, name FROM Trips")
     has_equal_ast(state=state)
 
 def test_has_equal_ast_pass_unparsed():
@@ -36,6 +36,11 @@ def test_has_equal_ast_fail_quoted_column():
     with pytest.raises(TF): has_equal_ast(state=state)
 
 
-#def test_check_statement_pass():
-#    prepare_state("SELECT id, name FROM Trips", "SELECT id FROM Trips")
-#    check_statement(
+def test_check_statement_pass():
+    state = prepare_state("SELECT id, name FROM Trips", "SELECT id FROM Trips")
+    check_statement("select", 0, state=state)
+
+def test_check_statement_fail():
+    state = prepare_state("SELECT id, name FROM Trips", "INSERT INTO Trips VALUES (1)")
+    with pytest.raises(TF): check_statement("select", 0, state=state)
+
