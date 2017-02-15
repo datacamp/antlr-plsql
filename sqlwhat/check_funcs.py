@@ -24,8 +24,18 @@ def check_statement(name, index=0, missing_msg="missing statement", state=None):
 
     return state.to_child(student_ast = stu_stmt, solution_ast = sol_stmt)
 
-def check_clause(index, state=None):
-    pass
+def check_clause(name, missing_msg="missing clause", state=None):
+    try: stu_attr = getattr(state.student_ast, name)
+    except: state.reporter.do_test(Test(missing_msg))
+
+    try: sol_attr = getattr(state.solution_ast, name)
+    except IndexError: raise IndexError("Can't get %s attribute"%name)
+
+    # fail if attribute exists, but is none only for student
+    if stu_attr is None and sol_attr is not None:
+        state.reporter.do_test(Test(missing_msg))
+
+    return state.to_child(student_ast = stu_attr, solution_ast = sol_attr)
 
 def check_correct(index, state=None):
     pass
