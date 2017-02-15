@@ -1,4 +1,5 @@
 from sqlwhat.check_funcs import check_statement, check_clause, has_equal_ast
+from sqlwhat.selectors import ast
 from sqlwhat.State import State
 from pythonwhat.Reporter import Reporter
 from pythonwhat.Test import TestFail as TF
@@ -35,12 +36,23 @@ def test_has_equal_ast_fail_quoted_column():
     state = prepare_state('SELECT "id", "name" FROM "Trips"', "SELECT id, name FROM Trips")
     with pytest.raises(TF): has_equal_ast(state=state)
 
-
 def test_check_statement_pass():
     state = prepare_state("SELECT id, name FROM Trips", "SELECT id FROM Trips")
-    check_statement("select", 0, state=state)
+    child = check_statement("select", 0, state=state)
+    assert isinstance(child.student_ast, ast.SelectStmt)
+    assert isinstance(child.solution_ast, ast.SelectStmt)
 
 def test_check_statement_fail():
     state = prepare_state("SELECT id, name FROM Trips", "INSERT INTO Trips VALUES (1)")
     with pytest.raises(TF): check_statement("select", 0, state=state)
+
+def test_check_clause_pass():
+    state = prepare_state("SELECT id FROM Trips WHERE id > 3", "SELECT id FROM Trips WHERE id>3")
+    select = check_statement("select", 0, state=state)
+    check_clause("where_clause", state=select)
+
+def test_check_clause_fail():
+    state = prepare_state("SELECT id FROM Trips WHERE id > 3", "SELECT id FROM Trips WHERE id>4")
+    select = check_statement("select", 0, state=state)
+    check_clause("where_clause", state=select)
 
