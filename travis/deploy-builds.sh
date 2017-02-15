@@ -25,7 +25,7 @@ git checkout -b $BRANCH -t origin/$BRANCH
 git rm -fr *
 # move in contents from build directory
 mv $TMP/* .
-mv $TMP/.* .
+mv $TMP/.travis.ytml .
 
 # clean out uneccessary build and cache files
 make clean
