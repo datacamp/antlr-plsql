@@ -30,6 +30,6 @@ class State:
             raise KeyError("Invalid init params for State: %s"% ", ".join(bad_pars))
 
         child = copy(self)
-        for k, v in kwargs.items(): setattr(self, k, v)
+        for k, v in kwargs.items(): setattr(child, k, v)
         child.parent = self
         return child
