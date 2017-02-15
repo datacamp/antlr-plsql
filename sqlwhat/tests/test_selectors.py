@@ -46,6 +46,12 @@ def test_selector_omits_subquery():
     assert all(type(v) == ast.SelectStmt for v in out)
     assert out[0].target_list[0].fields == ['a']
 
+def test_selector_includes_subquery():
+    out = build_and_run("SELECT a FROM x WHERE a = (SELECT b FROM y)", ast.SelectStmt, priority=999)
+    select1 = out[1]
+    select2 = ast.parse("SELECT b FROM y", start='subquery')    # subquery is the parser rule for select statements
+    assert repr(select1) == repr(select2)
+
 def test_dispatch_select():
     tree = ast.parse("SELECT id FROM artists")
     selected = dispatch("statement", "select", 0, tree)
