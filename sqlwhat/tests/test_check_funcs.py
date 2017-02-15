@@ -38,21 +38,21 @@ def test_has_equal_ast_fail_quoted_column():
 
 def test_check_statement_pass():
     state = prepare_state("SELECT id, name FROM Trips", "SELECT id FROM Trips")
-    child = check_statement("select", 0, state=state)
+    child = check_statement(state, "select", 0)
     assert isinstance(child.student_ast, ast.SelectStmt)
     assert isinstance(child.solution_ast, ast.SelectStmt)
 
 def test_check_statement_fail():
     state = prepare_state("SELECT id, name FROM Trips", "INSERT INTO Trips VALUES (1)")
-    with pytest.raises(TF): check_statement("select", 0, state=state)
+    with pytest.raises(TF): check_statement(state, "select", 0)
 
 def test_check_clause_pass():
     state = prepare_state("SELECT id FROM Trips WHERE id > 3", "SELECT id FROM Trips WHERE id>3")
-    select = check_statement("select", 0, state=state)
-    check_clause("where_clause", state=select)
+    select = check_statement(state, "select", 0)
+    check_clause(select, "where_clause")
 
 def test_check_clause_fail():
     state = prepare_state("SELECT id FROM Trips WHERE id > 3", "SELECT id FROM Trips WHERE id>4")
-    select = check_statement("select", 0, state=state)
-    check_clause("where_clause", state=select)
+    select = check_statement(state, "select", 0)
+    check_clause(select, "where_clause")
 

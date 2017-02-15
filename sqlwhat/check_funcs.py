@@ -1,17 +1,43 @@
 from pythonwhat import check_syntax as cs
-from pythonwhat.check_syntax import Chain
 from pythonwhat.Test import TestFail, Test
 from sqlwhat.State import State
 from sqlwhat.selectors import dispatch
 from functools import partial
+import copy
 
 # TODO: should be defined on chain class, rather than module level in pw
-cs.ATTR_SCTS = globals()
+ATTR_SCTS = globals()
+
+class Chain:
+    def __init__(self, state):
+        self._state = state
+        self._crnt_sct = None
+        self._waiting_on_call = False
+
+    def __getattr__(self, attr):
+        if attr not in ATTR_SCTS: raise AttributeError("No SCT named %s"%attr)
+        elif self._waiting_on_call: 
+            raise AttributeError("Did you forget to call a statement? "
+                                 "e.g. Ex().check_list_comp.check_body()")
+        else:
+            # make a copy to return, 
+            # in case someone does: a = chain.a; b = chain.b
+            chain = copy.copy(self)
+            chain._crnt_sct = ATTR_SCTS[attr]
+            chain._waiting_on_call = True
+            return chain
+
+    def __call__(self, *args, **kwargs):
+        # NOTE: the only change from python what is that state is now 1st pos arg below
+        self._state = self._crnt_sct(self._state, *args, **kwargs)
+        self._waiting_on_call = False
+        return self
 
 def Ex(state=None):
     return Chain(state or State.root_state)
 
-def check_statement(name, index=0, missing_msg="missing statement", state=None):
+
+def check_statement(state, name, index=0, missing_msg="missing statement"):
     df = partial(dispatch, 'statement', name, slice(None))
 
     stu_stmt_list = df(state.student_ast)
@@ -24,7 +50,7 @@ def check_statement(name, index=0, missing_msg="missing statement", state=None):
 
     return state.to_child(student_ast = stu_stmt, solution_ast = sol_stmt)
 
-def check_clause(name, missing_msg="missing clause", state=None):
+def check_clause(state, name, missing_msg="missing clause"):
     try: stu_attr = getattr(state.student_ast, name)
     except: state.reporter.do_test(Test(missing_msg))
 
@@ -37,10 +63,7 @@ def check_clause(name, missing_msg="missing clause", state=None):
 
     return state.to_child(student_ast = stu_attr, solution_ast = sol_attr)
 
-def check_correct(index, state=None):
-    pass
-
-def check_result(msg="Incorrect result.", state=None):
+def check_result(state, msg="Incorrect result."):
     stu_res = state.student_result
     sol_res = state.solution_result
     if stu_res != sol_res:
@@ -48,13 +71,17 @@ def check_result(msg="Incorrect result.", state=None):
 
     return state
 
-def has_equal_ast(msg="Incorrect AST", state=None):
+
+def check_correct(state, index):
+    pass
+
+def has_equal_ast(state, msg="Incorrect AST"):
     if repr(state.student_ast) != repr(state.solution_ast):
         state.reporter.do_test(Test(msg))
 
     return state
 
-def test_mc(correct, msgs, state=None):
+def test_mc(state, correct, msgs):
     ctxt = {}
     exec(state.student_code, globals(), ctxt)
     if ctxt['selected_option'] != correct:
