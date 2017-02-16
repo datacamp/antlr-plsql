@@ -31,6 +31,7 @@ mv $TMP/.travis.yml .
 make clean
 
 git add --all *
+git add .travis.yml
 git commit -m "Build for ${TARGET}"
 git push -u origin $BRANCH
 rm -rf $TMP
