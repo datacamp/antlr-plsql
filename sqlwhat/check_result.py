@@ -18,7 +18,7 @@ def test_has_columns(state, msg="No column output in submission"):
     if not state.student_result:
         state.reporter.do_test(Test(msg))
 
-def test_nrows(state, msg="Incorrect number of rows"):
+def test_nrows(state, msg="Result has {} row(s) but expected {}."):
 
     stu_res = state.student_result
     sol_res = state.solution_result
@@ -27,7 +27,8 @@ def test_nrows(state, msg="Incorrect number of rows"):
     a_sol_col = next(iter(sol_res.values()))
 
     if len(a_stu_col) != len(a_sol_col):
-        state.reporter.do_test(Test(msg))
+        _msg = msg.format(len(a_stu_col), len(a_sol_col))
+        state.reporter.do_test(Test(_msg))
 
 def test_column(state, name, msg="Incorrect column", 
                 match = ('exact', 'alias', 'any')[0],
