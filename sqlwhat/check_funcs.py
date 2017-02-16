@@ -2,6 +2,7 @@ from pythonwhat import check_syntax as cs
 from pythonwhat.Test import TestFail, Test
 from sqlwhat.State import State
 from sqlwhat.selectors import dispatch
+from sqlwhat.check_result import check_result, test_has_columns, test_nrows, test_column
 from functools import partial
 import copy
 
@@ -62,15 +63,6 @@ def check_clause(state, name, missing_msg="missing clause"):
         state.reporter.do_test(Test(missing_msg))
 
     return state.to_child(student_ast = stu_attr, solution_ast = sol_attr)
-
-def check_result(state, msg="Incorrect result."):
-    stu_res = state.student_result
-    sol_res = state.solution_result
-    if stu_res != sol_res:
-        state.reporter.do_test(Test(msg))
-
-    return state
-
 
 def check_correct(state, index):
     pass
