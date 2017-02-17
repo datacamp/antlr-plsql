@@ -13,7 +13,7 @@ def test_selector_standalone():
     assert isinstance(sel.out[0], Num)
 
 def test_selector_on_self():
-    star = ast.Star()
+    star = ast.Star(None)
     sel = Selector(ast.Star)
     sel.visit(star)
     assert sel.out[0] == star

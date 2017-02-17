@@ -32,7 +32,7 @@ class AstNode(AST):         # AST is subclassed only so we can use ast.NodeVisit
 
     # default visiting behavior, which uses fields
     def __init__(self, ctx, visitor):
-        _ctx = ctx
+        self._ctx = ctx
 
         for mapping in self._fields:
             # parse mapping for -> and indices [] -----
@@ -84,11 +84,14 @@ class Script(AstNode):
     _priority = 0
 
     def __init__(self, ctx, visitor):
-        self.body = [visitor.visit(child) for child in ctx.children[:-1]]
+        self._ctx = ctx
+        self.body = [visitor.visit(child) for child in ctx.children
+                                if not isinstance(child, Tree.TerminalNodeImpl)] # filter semi colons
 
 class SelectStmt(AstNode):
     _fields = ['pref', 'target_list', 'into_clause', 'from_clause', 'where_clause',
-               'hierarchical_query_clause', 'group_by_clause', 'model_clause']
+               'hierarchical_query_clause', 'group_by_clause', 'model_clause', 
+               'for_update_clause', 'order_by_clause', 'limit_clause']
 
     _priority = 1
 
@@ -96,7 +99,7 @@ class Identifier(AstNode):
     _fields = ['fields']
 
 class Star(AstNode):
-    def __init__(self, *args, **kwargs): pass
+    def __init__(self, ctx, *args, **kwargs): self._ctx = ctx
 
 class AliasExpr(AstNode):
     _fields = ['expr', 'alias']
@@ -151,9 +154,8 @@ class AstVisitor(plsqlVisitor):
         return Star(ctx, self)
 
     def visitStarTable(self, ctx):
-        # TODO: account for table link with '@'
-        identifier = self.visit(ctx.dot_id)
-        identifier.fields += Star()
+        identifier = self.visit(ctx.dot_id())
+        identifier.fields += [self.visit(ctx.star())]
         return identifier
 
     def visitAlias_expr(self, ctx):
@@ -184,21 +186,15 @@ class AstVisitor(plsqlVisitor):
     visitOrExpr =     visitBinaryExpr
 
 
-    #def visitExpression(self, ctx):
-    #    if (ctx.left and ctx.right):
-    #        return BinaryExpr(ctx, selef)
-    #    elif ctx.expression:
-    #        return UnaryExpr(ctx, self)
-    #    else:
-    #        return self.visitChildren(ctx)
-
     # simple dropping of tokens -----------------------------------------------
-    
     def visitWhere_clause(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.WHERE())
 
     def visitFrom_clause(self, ctx):
         return  self.visitChildren(ctx, predicate = lambda n: n is not ctx.FROM())
+
+    def visitLimit_clause(self, ctx):
+        return  self.visitChildren(ctx, predicate = lambda n: n is not ctx.LIMIT())
 
     def visitColumn_alias(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.AS())
