@@ -36,6 +36,11 @@ def test_has_equal_ast_fail_quoted_column():
     state = prepare_state('SELECT "id", "name" FROM "Trips"', "SELECT id, name FROM Trips")
     with pytest.raises(TF): has_equal_ast(state=state)
 
+def test_has_equal_ast_manual():
+    query = "SELECT id, name FROM Trips"
+    state = prepare_state(query, query)
+    with pytest.raises(TF): has_equal_ast(state, sql="SELECT * FROM Trips", start="subquery")
+
 def test_check_statement_pass():
     state = prepare_state("SELECT id, name FROM Trips", "SELECT id FROM Trips")
     child = check_statement(state, "select", 0)

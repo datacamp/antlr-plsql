@@ -1,7 +1,7 @@
 from pythonwhat import check_syntax as cs
 from pythonwhat.Test import TestFail, Test
 from sqlwhat.State import State
-from sqlwhat.selectors import dispatch
+from sqlwhat.selectors import dispatch, ast
 from sqlwhat.check_result import check_result, test_has_columns, test_nrows, test_column
 from functools import partial
 import copy
@@ -67,8 +67,9 @@ def check_clause(state, name, missing_msg="missing clause"):
 def check_correct(state, index):
     pass
 
-def has_equal_ast(state, msg="Incorrect AST"):
-    if repr(state.student_ast) != repr(state.solution_ast):
+def has_equal_ast(state, msg="Incorrect AST", sql=None, start="sql_script"):
+    sol_ast = state.solution_ast if sql is None else ast.parse(sql, start)
+    if repr(state.student_ast) != repr(sol_ast):
         state.reporter.do_test(Test(msg))
 
     return state
