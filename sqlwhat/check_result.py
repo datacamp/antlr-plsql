@@ -14,7 +14,7 @@ def check_result(state, msg="Incorrect result."):
 
     return state
 
-def test_has_columns(state, msg="No column output in submission"):
+def test_has_columns(state, msg="You result did not output any columns."):
     if not state.student_result:
         state.reporter.do_test(Test(msg))
 
@@ -30,7 +30,7 @@ def test_nrows(state, msg="Result has {} row(s) but expected {}."):
         _msg = msg.format(len(a_stu_col), len(a_sol_col))
         state.reporter.do_test(Test(_msg))
 
-def test_column(state, name, msg="Incorrect column", 
+def test_column(state, name, msg="Column {} does not match the solution", 
                 match = ('exact', 'alias', 'any')[0],
                 test = 'equivalent'):
 
@@ -51,4 +51,5 @@ def test_column(state, name, msg="Incorrect column",
 
     # test that relevant submission columns contain the solution column
     if src_col not in dst_cols:
-        state.reporter.do_test(Test(msg))
+        _msg = msg.format(name)
+        state.reporter.do_test(Test(_msg))

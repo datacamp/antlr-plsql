@@ -18,6 +18,10 @@ def test_test_has_columns_fail():
     state = prepare_state({'a': [1,2,3]}, {})
     with pytest.raises(TF): cr.test_has_columns(state)
 
+def test_test_has_columns_pass_no_rows():
+    state = prepare_state({'a': [1,2,3]}, {'a': []})
+    cr.test_has_columns(state)
+
 def test_test_nrows_fail():
     state = prepare_state({'a': [1,2,3]}, {'b': [1,2]})
     with pytest.raises(TF): cr.test_nrows(state)
