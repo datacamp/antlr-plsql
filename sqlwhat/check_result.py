@@ -23,11 +23,23 @@ def test_nrows(state, msg="Result has {} row(s) but expected {}."):
     stu_res = state.student_result
     sol_res = state.solution_result
     
-    a_stu_col = next(iter(stu_res.values()))
-    a_sol_col = next(iter(sol_res.values()))
+    # assumes that columns cannot be jagged in size
+    n_stu = len(next(iter(state.student_result.values())))
+    n_sol = len(next(iter(state.solution_result.values())))
 
-    if len(a_stu_col) != len(a_sol_col):
-        _msg = msg.format(len(a_stu_col), len(a_sol_col))
+    if n_stu != n_sol:
+        _msg = msg.format(n_stu, n_sol)
+        state.reporter.do_test(Test(_msg))
+
+def test_ncols(state, msg="Result has {} column(s) but expected {}."):
+    stu_res = state.student_result
+    sol_res = state.solution_result
+    
+    n_stu = len(state.student_result)
+    n_sol = len(state.solution_result)
+
+    if n_stu != n_sol:
+        _msg = msg.format(n_stu, n_sol)
         state.reporter.do_test(Test(_msg))
 
 def test_column(state, name, msg="Column {} does not match the solution", 

@@ -26,6 +26,18 @@ def test_test_nrows_fail():
     state = prepare_state({'a': [1,2,3]}, {'b': [1,2]})
     with pytest.raises(TF): cr.test_nrows(state)
 
+def test_test_ncols_pass():
+    state = prepare_state({'a': [1,2,3]}, {'b': [1,2,3]})
+    cr.test_nrows(state)
+
+def test_test_ncols_fail():
+    state = prepare_state({'a': [1], 'b': [1]}, {'c': [1]})
+    with pytest.raises(TF): cr.test_ncols(state)
+
+def test_test_ncols_pass():
+    state = prepare_state({'a': [1], 'b': [1]}, {'c': [1], 'd': [1]})
+    cr.test_ncols(state)
+
 @pytest.mark.parametrize('match, stu_result', [
     [ 'any', {'b': [1]} ],
     [ 'any', {'b': [1], 'a': [2]} ],
