@@ -1,7 +1,7 @@
 from sqlwhat.test_exercise import test_exercise as te
 
 def test_pass():
-    result = [['id', 'name'], [1, 'greg']]
+    result = {'id': [1], 'name': ['greg']}
     sct_payload = te(
         sct = "Ex().check_result()",
         student_code = "SELECT * FROM company",
@@ -18,8 +18,8 @@ def test_pass():
     assert sct_payload.get('correct') is True
 
 def test_fail():
-    sol_result = [['id', 'name'], [1, 'greg']]
-    stu_result = [['id', 'name']]
+    sol_result = {'id': [1], 'name': ['greg']}
+    stu_result = {'id': [1, 2], 'name': ['greg', 'fred']}
     sct_payload = te(
         sct = "Ex().check_result()",
         student_code = "SELECT * FROM company",

@@ -25,12 +25,13 @@ git checkout -b $BRANCH -t origin/$BRANCH
 git rm -fr *
 # move in contents from build directory
 mv $TMP/* .
-mv $TMP/.travis.ytml .
+mv $TMP/.travis.yml .
 
 # clean out uneccessary build and cache files
 make clean
 
 git add --all *
+git add .travis.yml
 git commit -m "Build for ${TARGET}"
 git push -u origin $BRANCH
 rm -rf $TMP

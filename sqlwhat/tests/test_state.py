@@ -9,8 +9,8 @@ def test_pass():
         student_code = "SELECT * FROM company",
         solution_code = "SELECT * FROM company",
         pre_exercise_code = "",
-        student_result = [['id', 'name'], [1, 'greg']],
-        solution_result = [['id', 'name'], [1, 'greg']],
+        student_result =  {'id': [1], 'name': ['greg']},
+        solution_result = {'id': [1], 'name': ['greg']},
         student_conn = None,
         solution_conn = None,
         reporter= Reporter())
@@ -24,8 +24,8 @@ def test_fail():
         student_code = "SELECT * FROM company",
         solution_code = "SELECT * FROM company",
         pre_exercise_code = "",
-        student_result = [['id', 'name'], [1, 'greg']],
-        solution_result = [['id', 'name'], [0, 'greg']],
+        student_result = {'id': [1], 'name': ['greg']},
+        solution_result = {'id': [0], 'name': ['greg']},
         student_conn = None,
         solution_conn = None,
         reporter= Reporter())

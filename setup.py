@@ -6,4 +6,4 @@ setup(
 	name='sqlwhat',
 	version='0.0.5',
 	packages=['sqlwhat', 'sqlwhat.grammar.plsql'],
-	install_requires=['pythonwhat'])
+	install_requires=['pythonwhat', 'antlr4-python3-runtime'])
