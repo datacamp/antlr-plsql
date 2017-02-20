@@ -27,7 +27,8 @@ compilation_unit
     ;
 
 sql_script
-    : (unit_statement | sql_plus_command)* EOF
+    : (unit_statement | sql_plus_command ) EOF
+    | (unit_statement ';' | sql_plus_command ';')* EOF
     ;
 
 unit_statement
@@ -66,17 +67,17 @@ unit_statement
 // $<Function DDLs
 
 drop_function
-    : DROP FUNCTION function_name ';'
+    : DROP FUNCTION function_name
     ;
 
 alter_function
-    : ALTER FUNCTION function_name COMPILE DEBUG? compiler_parameters_clause* (REUSE SETTINGS)? ';'
+    : ALTER FUNCTION function_name COMPILE DEBUG? compiler_parameters_clause* (REUSE SETTINGS)?
     ;
 
 create_function_body
     : (CREATE (OR REPLACE)?)? FUNCTION function_name ('(' parameter (',' parameter)* ')')?
       RETURN type_spec (invoker_rights_clause|parallel_enable_clause|result_cache_clause|DETERMINISTIC)*
-      ((PIPELINED? (IS | AS) (DECLARE? declare_spec* body | call_spec)) | (PIPELINED | AGGREGATE) USING implementation_type_name) ';'
+      ((PIPELINED? (IS | AS) (DECLARE? declare_spec* body | call_spec)) | (PIPELINED | AGGREGATE) USING implementation_type_name)
     ;
 
 // $<Creation Function - Specific Clauses
@@ -104,15 +105,15 @@ streaming_clause
 // $<Package DDLs
 
 drop_package
-    : DROP PACKAGE BODY? package_name ';'
+    : DROP PACKAGE BODY? package_name
     ;
 
 alter_package
-    : ALTER PACKAGE package_name COMPILE DEBUG? (PACKAGE | BODY | SPECIFICATION)? compiler_parameters_clause* (REUSE SETTINGS)? ';'
+    : ALTER PACKAGE package_name COMPILE DEBUG? (PACKAGE | BODY | SPECIFICATION)? compiler_parameters_clause* (REUSE SETTINGS)?
     ;
 
 create_package
-    : CREATE (OR REPLACE)? PACKAGE (package_spec | package_body)? ';'
+    : CREATE (OR REPLACE)? PACKAGE (package_spec | package_body)?
     ;
 
 // $<Create Package - Specific Clauses
@@ -161,17 +162,17 @@ package_obj_body
 // $<Procedure DDLs
 
 drop_procedure
-    : DROP PROCEDURE procedure_name ';'
+    : DROP PROCEDURE procedure_name
     ;
 
 alter_procedure
-    : ALTER PROCEDURE procedure_name COMPILE DEBUG? compiler_parameters_clause* (REUSE SETTINGS)? ';'
+    : ALTER PROCEDURE procedure_name COMPILE DEBUG? compiler_parameters_clause* (REUSE SETTINGS)?
     ;
 
 create_procedure_body
     : (CREATE (OR REPLACE)?)? PROCEDURE procedure_name ('(' parameter (',' parameter)* ')')? 
       invoker_rights_clause? (IS | AS)
-      (DECLARE? declare_spec* body | call_spec | EXTERNAL) ';'
+      (DECLARE? declare_spec* body | call_spec | EXTERNAL)
     ;
 
 // $>
@@ -179,18 +180,18 @@ create_procedure_body
 // $<Trigger DDLs
 
 drop_trigger
-    : DROP TRIGGER trigger_name ';'
+    : DROP TRIGGER trigger_name
     ;
 
 alter_trigger
     : ALTER TRIGGER tn1=trigger_name
-      ((ENABLE | DISABLE) | RENAME TO tn2=trigger_name | COMPILE DEBUG? compiler_parameters_clause* (REUSE SETTINGS)?) ';'
+      ((ENABLE | DISABLE) | RENAME TO tn2=trigger_name | COMPILE DEBUG? compiler_parameters_clause* (REUSE SETTINGS)?)
     ;
 
 create_trigger
     : CREATE ( OR REPLACE )? TRIGGER trigger_name
     (simple_dml_trigger | compound_dml_trigger | non_dml_trigger)
-    trigger_follows_clause? (ENABLE | DISABLE)? trigger_when_clause? trigger_body ';'
+    trigger_follows_clause? (ENABLE | DISABLE)? trigger_when_clause? trigger_body
     ;
 
 trigger_follows_clause
@@ -292,7 +293,7 @@ referencing_element
 // $<Type DDLs
 
 drop_type
-    : DROP TYPE BODY? type_name (FORCE | VALIDATE)? ';'
+    : DROP TYPE BODY? type_name (FORCE | VALIDATE)?
     ;
 
 alter_type
@@ -303,7 +304,7 @@ alter_type
     | alter_method_spec
     | alter_collection_clauses
     | modifier_clause
-    ) dependent_handling_clause? ';'
+    ) dependent_handling_clause?
     ;
 
 // $<Alter Type - Specific Clauses
@@ -345,7 +346,7 @@ dependent_exceptions_part
     ;
 
 create_type
-    : CREATE (OR REPLACE)? TYPE (type_definition | type_body) ';'
+    : CREATE (OR REPLACE)? TYPE (type_definition | type_body)
     ;
 
 // $<Create Type - Specific Clauses
@@ -471,15 +472,15 @@ type_elements_parameter
 // $<Sequence DDLs
 
 drop_sequence
-    : DROP SEQUENCE sequence_name ';'
+    : DROP SEQUENCE sequence_name
     ;
 
 alter_sequence
-    : ALTER SEQUENCE sequence_name sequence_spec+ ';'
+    : ALTER SEQUENCE sequence_name sequence_spec+
     ;
 
 create_sequence
-    : CREATE SEQUENCE sequence_name (sequence_start_clause | sequence_spec)* ';'
+    : CREATE SEQUENCE sequence_name (sequence_start_clause | sequence_spec)*
     ;
 
 // $<Common Sequence
@@ -890,7 +891,8 @@ explain_statement
     ;
 
 select_statement
-    : subquery_factoring_clause? subquery (for_update_clause | order_by_clause)*
+    // MC-Note: a subquery should allow a full select_statement
+    : subquery_factoring_clause? subquery 
     ;
 
 // $<Select - Specific Clauses
@@ -926,11 +928,14 @@ query_block
     // MC-Note: from_clause should be optional
     : SELECT pref=(DISTINCT | UNIQUE | ALL)? (target_list+=selected_element (',' target_list+=selected_element)*)
       into_clause? from_clause where_clause? hierarchical_query_clause? group_by_clause? model_clause?
+      (for_update_clause | order_by_clause | limit_clause)*
     ;
 
 selected_element
+    // TODO: need to figure out tableview_name for AST parsing
     : star                                  # Star1
-    | tableview_name '.' star               # StarTable  // TODO, can '.' '*' be rolled into tableview_name?
+    | dot_id '.' star                       # StarTable  // TODO, can '.' '*' be rolled into tableview_name?
+    | tableview_name                        # IgnoreTableview_name
     | expr=expression alias=column_alias?   # Alias_expr
     ;
 
@@ -1142,6 +1147,10 @@ for_update_options
     : SKIP_ LOCKED
     | NOWAIT
     | WAIT expression
+    ;
+
+limit_clause
+    : LIMIT expression
     ;
 
 // $>
@@ -1721,7 +1730,7 @@ xmlserialize_param_ident_part
 // SqlPlus
 
 sql_plus_command 
-    : ('/' | whenever_command | exit_command | prompt_command | set_command | show_errors_command) ';'?
+    : ('/' | whenever_command | exit_command | prompt_command | set_command | show_errors_command)
     ;
 
 whenever_command
