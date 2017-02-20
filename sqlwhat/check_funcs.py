@@ -2,7 +2,7 @@ from pythonwhat import check_syntax as cs
 from pythonwhat.Test import TestFail, Test
 from sqlwhat.State import State
 from sqlwhat.selectors import dispatch
-from sqlwhat.check_result import check_result, test_has_columns, test_nrows, test_column
+from sqlwhat.check_result import check_result, test_has_columns, test_nrows, test_ncols, test_column
 from functools import partial
 import copy
 
