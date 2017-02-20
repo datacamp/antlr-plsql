@@ -1,4 +1,5 @@
 from sqlwhat.check_funcs import check_statement, check_clause, has_equal_ast
+from sqlwhat import check_funcs as cf
 from sqlwhat.selectors import ast
 from sqlwhat.State import State
 from pythonwhat.Reporter import Reporter
@@ -69,3 +70,37 @@ def test_check_clause_fail():
     select = check_statement(state, "select", 0)
     check_clause(select, "where_clause")
 
+@pytest.fixture
+def state_tst():
+    return prepare_state("SELECT id FROM Trips", "SELECT id FROM Trips WHERE id > 4   ;")
+
+def test_student_typed_itself_pass(state_tst):
+    cf.test_student_typed(state_tst, text=state_tst.student_code, fixed=True)
+
+def test_student_typed_fixed_subset_fail(state_tst):
+    select = check_statement(state_tst, "select", 0)
+    # should fail because the select statement does not include ';'
+    with pytest.raises(TF):
+        cf.test_student_typed(state_tst, state_tst.student_code, fixed=True)
+
+def test_student_typed_fixed_subset_pass(state_tst):
+    select = check_statement(state_tst, "select", 0)
+    where = check_clause(select, "where_clause")
+    cf.test_student_typed(where, "id > 4", fixed=True)
+
+def test_student_typed_fixed_subset_fail(state_tst):
+    select = check_statement(state_tst, "select", 0)
+    where = check_clause(select, "where_clause")
+    with pytest.raises(TF):
+        cf.test_student_typed(where, "WHERE id > 4", fixed=True)
+
+def test_student_typed_subset_re_pass(state_tst):
+    select = check_statement(state_tst, "select", 0)
+    where = check_clause(select, "where_clause")
+    cf.test_student_typed(where, "id > [0-9]")
+
+def test_student_typed_subset_re_pass(state_tst):
+    select = check_statement(state_tst, "select", 0)
+    where = check_clause(select, "where_clause")
+    with pytest.raises(TF):
+        cf.test_student_typed(where, "id > [a-z]")
