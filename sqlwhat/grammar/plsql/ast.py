@@ -9,10 +9,11 @@ from .plsqlLexer import plsqlLexer
 from .plsqlParser import plsqlParser
 from .plsqlVisitor import plsqlVisitor
 
+import json
+
 # AST -------------------------------------------------------------------------
 # TODO: Finish Unary+Binary Expr
 #       sql_script
-#       _dump method for each node, starting with smallest
 
 def parse(sql_text, start='sql_script'):
     input_stream = InputStream(sql_text)
@@ -21,10 +22,19 @@ def parse(sql_text, start='sql_script'):
     token_stream = CommonTokenStream(lexer)
     parser = plsqlParser(token_stream)
     ast = AstVisitor()     
-    # TODO: may also want to construct ast from expression
     return ast.visit(getattr(parser, start)())
 
-
+def dump_node(obj):
+    if isinstance(obj, AstNode):
+        fields = {}
+        for name in obj._get_field_names():
+            attr = getattr(obj, name)
+            if   isinstance(attr, AstNode): fields[name] = attr._dump()
+            elif isinstance(attr, list):    fields[name] = [dump_node(x) for x in attr]
+            else:                           fields[name] = attr
+        return {'type': obj.__class__.__name__, 'data': fields}
+    else:
+        return obj
 
 class AstNode(AST):         # AST is subclassed only so we can use ast.NodeVisitor...
     _fields = []            # contains child nodes to visit
@@ -64,6 +74,18 @@ class AstNode(AST):         # AST is subclassed only so we can use ast.NodeVisit
 
     def _get_text(self, text):
         return text[self._ctx.start.start: self._ctx.stop.stop + 1]
+
+    def _dump(self):
+        return dump_node(self)
+
+    def _dumps(self):
+        return json.dumps(self._dump())
+
+    def _load(self):
+        raise NotImplementedError()
+
+    def _loads(self):
+        raise NotImplementedError()
 
     def __str__(self):
         els = [k for k in self._get_field_names() if getattr(self, k) is not None]
@@ -222,23 +244,3 @@ class AstVisitor(plsqlVisitor):
 
     visitParenExpr = visitAtom
     visitParenBinaryExpr = visitAtom
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    # for testing during development
-    input_stream = InputStream("""SELECT DISTINCT CURSOR (SELECT id FROM artists), artists.name as name2 FROM artists WHERE id + 1 AND name || 'greg' """)
-
-    lexer = plsqlLexer(input_stream)
-    token_stream = CommonTokenStream(lexer)
-    parser = plsqlParser(token_stream)
-    #tree = parser.sql_script()
-    ast = AstVisitor()     
-    select = ast.visit(parser.sql_script())
-    #ctx = ast.visit(parser.dot_id())
-
-
