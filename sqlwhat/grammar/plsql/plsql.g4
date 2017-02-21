@@ -915,9 +915,9 @@ cycle_clause
     ;
 
 subquery
-    : '(' subquery ')'
-    | subquery subquery_operation_part subquery
-    | query_block
+    : '(' subquery ')'                                          # SubqueryParen
+    | left=subquery op=subquery_operation_part right=subquery   # SubqueryCompound
+    | query_block                                               # IgnoreSubquery
     ;
 
 subquery_operation_part

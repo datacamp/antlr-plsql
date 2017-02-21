@@ -32,3 +32,23 @@ def test_ast_dumps_unary():
     assert tree._dump() == {'type': 'UnaryExpr',
                             'data': {'expr': '1', 'op': '-'}
                             }
+
+def test_select_fields_shaped():
+    select = ast.parse("""
+    SELECT a,b 
+    FROM x,y 
+    GROUP BY a, b
+    ORDER BY a, b
+    
+    """, "subquery")
+    for field in select._get_field_names():
+        assert not isinstance(getattr(select, field), ast.Unshaped)
+
+def test_ast_select_paren():
+    node = ast.parse("(SELECT a FROM b)", 'subquery')
+    assert isinstance(node, ast.SelectStmt)
+
+def test_ast_select_union():
+    node = ast.parse("SELECT a FROM b UNION SELECT x FROM y", 'subquery')
+    assert isinstance(node, ast.BinaryExpr)
+    assert node.op == "UNION"

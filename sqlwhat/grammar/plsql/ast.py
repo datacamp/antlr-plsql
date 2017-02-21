@@ -154,6 +154,7 @@ class AstVisitor(plsqlVisitor):
         if len(result) == 1: return result[0]
         elif len(result) == 0: return None
         elif all(isinstance(res, str) for res in result): return " ".join(result)
+        elif all(isinstance(res, AstNode) for res in result): return result
         else: return Unshaped(node, result)
 
     def defaultResult(self):
@@ -168,6 +169,14 @@ class AstVisitor(plsqlVisitor):
 
     def visitSql_script(self, ctx):
         return Script(ctx, self)
+
+    def visitSubqueryParen(self, ctx):
+        return self.visit(ctx.subquery())
+
+    def visitSubqueryCompound(self, ctx):
+        # TODO: here we form UNION statements etc into binary expr, but should
+        #       use a compound statement as in official ast
+        return BinaryExpr(ctx, self)
 
     def visitQuery_block(self, ctx):
         return SelectStmt(ctx, self)
@@ -212,6 +221,8 @@ class AstVisitor(plsqlVisitor):
 
 
     # simple dropping of tokens -----------------------------------------------
+    # Note can't filter out TerminalNodeImpl from some currently as in something like
+    # "SELECT a FROM b WHERE 1", the 1 will be a terminal node in where_clause
     def visitWhere_clause(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.WHERE())
 
@@ -223,6 +234,15 @@ class AstVisitor(plsqlVisitor):
 
     def visitColumn_alias(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.AS())
+
+    def visitTable_ref_list(self, ctx):
+        return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNodeImpl))
+
+    def visitGroup_by_clause(self, ctx):
+        return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNodeImpl))
+
+    def visitOrder_by_clause(self, ctx):
+        return self.visitChildren(ctx, predicate = lambda n: n is not ctx.ORDER() and n is not ctx.BY())
 
     # converting case insensitive keywords to lowercase -----------------------
 
