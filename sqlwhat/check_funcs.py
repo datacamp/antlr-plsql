@@ -1,9 +1,11 @@
 from pythonwhat import check_syntax as cs
 from pythonwhat.Test import TestFail, Test
+
 from sqlwhat.State import State
 from sqlwhat.selectors import dispatch, ast
 from sqlwhat.check_result import check_result, test_has_columns, test_nrows, test_ncols, test_column
 from sqlwhat.check_logic import fail, multi, test_or, test_correct
+
 from functools import partial
 import copy
 
@@ -52,6 +54,7 @@ def check_statement(state, name, index=0, missing_msg="missing statement"):
 
     return state.to_child(student_ast = stu_stmt, solution_ast = sol_stmt)
 
+
 def check_clause(state, name, missing_msg="missing clause"):
     try: stu_attr = getattr(state.student_ast, name)
     except: state.reporter.do_test(Test(missing_msg))
@@ -65,8 +68,19 @@ def check_clause(state, name, missing_msg="missing clause"):
 
     return state.to_child(student_ast = stu_attr, solution_ast = sol_attr)
 
-def check_correct(state, index):
-    pass
+import re
+
+def test_student_typed(state, text, msg="Solution does not contain {}.", fixed=False):
+    stu_text = state.student_ast._get_text(state.student_code)
+
+    _msg = msg.format(text)
+    if fixed and not text in stu_text:            # simple text matching
+        state.reporter.do_test(Test(msg))
+    elif not re.match(text, stu_text):            # regex
+        state.reporter.do_test(Test(msg))
+
+    return state
+
 
 def has_equal_ast(state, msg="Incorrect AST", sql=None, start="sql_script"):
     sol_ast = state.solution_ast if sql is None else ast.parse(sql, start)
@@ -74,6 +88,7 @@ def has_equal_ast(state, msg="Incorrect AST", sql=None, start="sql_script"):
         state.reporter.do_test(Test(msg))
 
     return state
+
 
 def test_mc(state, correct, msgs):
     ctxt = {}

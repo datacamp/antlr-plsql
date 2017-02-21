@@ -62,6 +62,9 @@ class AstNode(AST):         # AST is subclassed only so we can use ast.NodeVisit
     def _get_field_names(self):
         return [el.split('->')[-1] for el in self._fields]
 
+    def _get_text(self, text):
+        return text[self._ctx.start.start: self._ctx.stop.stop + 1]
+
     def __str__(self):
         els = [k for k in self._get_field_names() if getattr(self, k) is not None]
         return "{}: {}".format(self.__class__.__name__, ", ".join(els))
