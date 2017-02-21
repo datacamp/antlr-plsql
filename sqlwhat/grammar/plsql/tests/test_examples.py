@@ -12,6 +12,7 @@ def load_examples(dir_path):
                 ]
 
 
+@pytest.mark.antlr_parsing
 @pytest.mark.parametrize('name, query', load_examples(examples))
 def test_examples(name, query):
     ast.parse(query)
