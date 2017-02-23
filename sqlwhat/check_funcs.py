@@ -39,11 +39,31 @@ class Chain:
 
 def Ex(state=None):
     """Returns the current code state as a Chain instance.
-    
+
+    Args:
+        state: a State instance, which contains the student/solution code and results.
+
     This allows SCTs to be run without including their 1st argument, ``state``.
 
+    Note:
+        When writing SCTs on DataCamp, no State argument to ``Ex`` is necessary.
+        The exercise State is built for you.
+
     :Example:
-        
+    
+        ::
+            
+            # life without Ex
+            state = SomeStateProducingFunction()
+            test_student_typed(state, text="SELECT id")    # some SCT, w/state as first arg
+
+            # life with Ex
+            state = SomeStateProducingFunction()
+            Ex(state).test_student_typed(text="SELECT id")      # some SCT, w/o state as arg
+
+            # life writing SCTs on DataCamp.com
+            Ex().test_student_typed(text="SELECT id")
+            
     """
     return Chain(state or State.root_state)
 
@@ -98,7 +118,8 @@ def check_clause(state, name, missing_msg="missing clause"):
             
             SELECT a FROM b; SELECT x FROM y;
 
-        then we can get the from_clause using::
+        then we can get the from_clause using ::
+
             # approach 1: with manually created State instance -----
             state = State(*args, **kwargs)
             select = check_statement(state, 'select', 0)
@@ -131,6 +152,11 @@ def test_student_typed(state, text, msg="Solution does not contain {}.", fixed=F
         msg  : feedback message if text is not in student code.
         fixed: whether to match text exactly, rather than using regular expressions.
 
+    Note:
+        Functions like ``check_statement`` focus on certain parts of code.
+        Using these functions followed by ``test_student_typed`` will only look
+        in the code being focused on.
+
     :Example:
         If the student code is.. ::
 
@@ -139,17 +165,22 @@ def test_student_typed(state, text, msg="Solution does not contain {}.", fixed=F
         Then the first test below would (unfortunately) pass, but the second would fail..::
 
             # contained in student code
-            Ex().test_student_typed(test="id < 10")
+            Ex().test_student_typed(text="id < 10")
 
             # the $ means that you are matching the end of a line
-            Ex().test_student_typed(test="id < 10$")
+            Ex().test_student_typed(text="id < 10$")
 
         By setting ``fixed = True``, you can search for fixed strings::
 
             # without fixed = True, '*' matches any character
-            Ex().test_student_typed(test="SELECT * FROM b")               # passes
-            Ex().test_student_typed(test="SELECT \\* FROM b")             # fails
-            Ex().test_student_typed(test="SELECT * FROM b", fixed=True)   # fails
+            Ex().test_student_typed(text="SELECT * FROM b")               # passes
+            Ex().test_student_typed(text="SELECT \\\\* FROM b")             # fails
+            Ex().test_student_typed(text="SELECT * FROM b", fixed=True)   # fails
+
+        You can check only the code corresponding to the WHERE clause, using ::
+
+            where = Ex().check_statement('select', 0).check_clause('where_clause')
+            where.test_student_typed(text = "id < 10)
 
 
     """

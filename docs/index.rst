@@ -3,20 +3,27 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to sqlwhat's documentation!
+sqlwhat
 ===================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+Api
+----
 
-   api
+Check query results
+~~~~~~~~~~~~~~~~~~~
 
+.. automodule:: sqlwhat.check_result
+    :members:
 
+Check AST and code
+~~~~~~~~~~~~~~~~~~~
 
-Indices and tables
-==================
+.. automodule:: sqlwhat.check_funcs
+    :members:
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Logic
+~~~~~
+
+.. automodule:: sqlwhat.check_logic
+    :members:
+
