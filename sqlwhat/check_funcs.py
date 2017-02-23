@@ -38,10 +38,40 @@ class Chain:
         return self
 
 def Ex(state=None):
+    """Returns the current code state as a Chain instance.
+    
+    This allows SCTs to be run without including their 1st argument, ::state::.
+
+    :Example:
+        
+    """
     return Chain(state or State.root_state)
 
 
 def check_statement(state, name, index=0, missing_msg="missing statement"):
+    """Select a node from abstract syntax tree (AST), using its name and index position.
+    
+    Args:
+        state: State instance describing student and solution code. Can be omitted if used with Ex().
+        name : the name of the abstract syntax tree node to find.
+        index: the position of that node (see below for details).
+        missing_msg: feedback message if node is not in student AST.
+
+    :Example:
+        If both the student and solution code are..::
+
+            SELECT a FROM b; SELECT x FROM y;
+
+        then we can focus on the first select with::
+        
+            # approach 1: with manually created State instance
+            state = State(*args, **kwargs)
+            new_state = check_statement(state, 'select', 0)
+            
+            # approach 2:  with Ex and chaining
+            new_state = Ex().check_statement('select', 0)
+
+    """
     df = partial(dispatch, 'statement', name, slice(None))
 
     stu_stmt_list = df(state.student_ast)
@@ -56,6 +86,28 @@ def check_statement(state, name, index=0, missing_msg="missing statement"):
 
 
 def check_clause(state, name, missing_msg="missing clause"):
+    """Select an attribute from an abstract syntax tree (AST) node, using the attribute name.
+    
+    Args:
+        state: State instance describing student and solution code. Can be omitted if used with Ex().
+        name: the name of the attribute to select from current AST node.
+        missing_msg: feedback message if attribute is not in student AST.
+
+    :Example:
+        If both the student and solution code are..::
+            
+            SELECT a FROM b; SELECT x FROM y;
+
+        then we can get the from_clause using::
+            # approach 1: with manually created State instance -----
+            state = State(*args, **kwargs)
+            select = check_statement(state, 'select', 0)
+            clause = check_clause(select, 'from_clause')
+
+            # approach 2: with Ex and chaining ---------------------
+            select = Ex().check_statement('select', 0)     # get first select statement
+            clause = select.check_clause('from_clause')    # get from_clause
+    """
     try: stu_attr = getattr(state.student_ast, name)
     except: state.reporter.do_test(Test(missing_msg))
 
@@ -71,6 +123,36 @@ def check_clause(state, name, missing_msg="missing clause"):
 import re
 
 def test_student_typed(state, text, msg="Solution does not contain {}.", fixed=False):
+    """Test whether the student code contains text.
+
+    Args:
+        state: State instance describing student and solution code. Can be omitted if used with Ex().
+        text : text that student code must contain.
+        msg  : feedback message if text is not in student code.
+        fixed: whether to match text exactly, rather than using regular expressions.
+
+    :Example:
+        If the student code is..::
+
+            SELECT a FROM b WHERE id < 100
+
+        Then the first test below would (unfortunately) pass, but the second would fail..::
+
+            # contained in student code
+            Ex().test_student_typed(test="id < 10")
+
+            # the $ means that you are matching the end of a line
+            Ex().test_student_typed(test="id < 10$")
+
+        By setting ::fixed = True::, you can search for fixed strings::
+
+            # without fixed = True, '*' matches any character
+            Ex().test_student_typed(test="SELECT * FROM b")               # passes
+            Ex().test_student_typed(test="SELECT \\* FROM b")             # fails
+            Ex().test_student_typed(test="SELECT * FROM b", fixed=True)   # fails
+
+
+    """
     stu_text = state.student_ast._get_text(state.student_code)
 
     _msg = msg.format(text)
@@ -83,6 +165,9 @@ def test_student_typed(state, text, msg="Solution does not contain {}.", fixed=F
 
 
 def has_equal_ast(state, msg="Incorrect AST", sql=None, start="sql_script"):
+    """Test whether the student and solution code have identical AST representations
+    
+    """
     sol_ast = state.solution_ast if sql is None else ast.parse(sql, start)
     if repr(state.student_ast) != repr(sol_ast):
         state.reporter.do_test(Test(msg))
