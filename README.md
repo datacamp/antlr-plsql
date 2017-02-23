@@ -2,9 +2,12 @@
 
 [![Build Status](https://travis-ci.org/datacamp/sqlwhat.svg?branch=master)](https://travis-ci.org/datacamp/sqlwhat)
 
-First steps in sqlwhat
+Reference
+---------
 
-## Notes michael
+* API Docs: https://sqlwhat.readthedocs.io
+* AST viewer: https://sqlwhat-viewer.herokuapp.com
+* Example DataCamp Course: https://github.com/datacamp/courses-sql-test
 
 Setup ANTLR grammar
 -------------------
