@@ -40,7 +40,7 @@ class Chain:
 def Ex(state=None):
     """Returns the current code state as a Chain instance.
     
-    This allows SCTs to be run without including their 1st argument, ::state::.
+    This allows SCTs to be run without including their 1st argument, ``state``.
 
     :Example:
         
@@ -58,7 +58,7 @@ def check_statement(state, name, index=0, missing_msg="missing statement"):
         missing_msg: feedback message if node is not in student AST.
 
     :Example:
-        If both the student and solution code are..::
+        If both the student and solution code are.. ::
 
             SELECT a FROM b; SELECT x FROM y;
 
@@ -94,7 +94,7 @@ def check_clause(state, name, missing_msg="missing clause"):
         missing_msg: feedback message if attribute is not in student AST.
 
     :Example:
-        If both the student and solution code are..::
+        If both the student and solution code are.. ::
             
             SELECT a FROM b; SELECT x FROM y;
 
@@ -132,7 +132,7 @@ def test_student_typed(state, text, msg="Solution does not contain {}.", fixed=F
         fixed: whether to match text exactly, rather than using regular expressions.
 
     :Example:
-        If the student code is..::
+        If the student code is.. ::
 
             SELECT a FROM b WHERE id < 100
 
@@ -144,7 +144,7 @@ def test_student_typed(state, text, msg="Solution does not contain {}.", fixed=F
             # the $ means that you are matching the end of a line
             Ex().test_student_typed(test="id < 10$")
 
-        By setting ::fixed = True::, you can search for fixed strings::
+        By setting ``fixed = True``, you can search for fixed strings::
 
             # without fixed = True, '*' matches any character
             Ex().test_student_typed(test="SELECT * FROM b")               # passes
