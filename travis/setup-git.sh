@@ -10,7 +10,7 @@ echo "https://${GH_TOKEN}:@github.com" > .git/credentials
 #     fetch = +refs/heads/*:refs/remotes/origin/*
 # We can change the fetch setting by removing and adding the origin again:
 git remote remove origin
-git remote add origin https://github.com/datacamp/sqlwhat.git
+git remote add origin https://github.com/datacamp/antlr-plsql.git
 
 # Avoid detached head...
 git checkout $TRAVIS_BRANCH
