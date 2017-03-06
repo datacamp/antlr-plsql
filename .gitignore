@@ -1,3 +1,5 @@
+# Ignore hidden vagrant folder
+.vagrant
 # Ignore java files
 *.java
 *.class

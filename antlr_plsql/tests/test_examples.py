@@ -1,6 +1,6 @@
 import pytest
 import os
-from sqlwhat.grammar.plsql import ast
+from antlr_plsql import ast
 
 crnt_dir = os.path.dirname(__file__)
 examples = os.path.join(crnt_dir, 'examples')

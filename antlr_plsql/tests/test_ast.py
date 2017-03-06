@@ -1,5 +1,5 @@
 import pytest
-from sqlwhat.grammar.plsql import ast
+from antlr_plsql import ast
 
 def test_unparsed_to_text():
     sql_txt = "SELECT CURSOR (SELECT a FROM b) FROM c"

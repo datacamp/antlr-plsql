@@ -74,16 +74,17 @@ Vagrant.configure(2) do |config|
     sudo apt-get update
     sudo apt-get install -y build-essential default-jdk python3.5-dev python-pip maven
     #
-    # NOTE: replacing download with manual build for now
-    # cd /usr/local/lib
-    # sudo curl -O http://www.antlr.org/download/antlr-4.6-complete.jar
+    cd /usr/local/lib
+    # sudo curl -O http://www.antlr.org/download/antlr-4.6.1-complete.jar
+    sudo curl -O documents.datacamp.com/antlr4-4.6.1-SNAPSHOT-complete.jar
     #
     # Manual Build ---
-    git clone https://github.com/antlr/antlr4.git
-    cd antlr4
-    export MAVEN_OPTS="-Xmx1G"
-    mvn -DskipTests install
-    mv ~/.m2/repository/org/antlr/antlr4/4.6.1-SNAPSHOT/antlr4-4.6.1-SNAPSHOT-complete.jar /usr/local/lib
+    #git clone https://github.com/antlr/antlr4.git
+    #cd antlr4
+    #git checkout ce09abb480e82c1701f3df91a3f824fbe01cf454 # 4.6.1 applies a critical fix
+    #export MAVEN_OPTS="-Xmx1G"
+    #mvn -DskipTests install
+    #mv ~/.m2/repository/org/antlr/antlr4/4.6.1-SNAPSHOT/antlr4-4.6.1-SNAPSHOT-complete.jar /usr/local/lib
     #
     #
     mkdir -p tmp_scripts && cd tmp_scripts

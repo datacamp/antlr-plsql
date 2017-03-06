@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(
-	name='sqlwhat',
-	version='0.0.7',
-	packages=['sqlwhat', 'sqlwhat.grammar.plsql'],
-	install_requires=['pythonwhat', 'antlr4-python3-runtime'])
+	name='antlr-plsql',
+	version='0.0.1',
+	packages=['antlr_plsql'],
+	install_requires=['antlr4-python3-runtime'])
