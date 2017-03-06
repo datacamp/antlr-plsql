@@ -13,7 +13,7 @@ RUN echo "alias grun='java org.antlr.v4.runtime.misc.TestRig'" >> ~/.bashrc
 
 COPY . /usr/src/app
 WORKDIR /usr/src/app
-RUN cd sqlwhat/grammar/plsql && antlr4 -Dlanguage=Python3 -visitor plsql.g4
+RUN cd antlr_plsql && antlr4 -Dlanguage=Python3 -visitor plsql.g4
 RUN pip install antlr4-python3-runtime
 RUN pip install -r requirements.txt
 RUN pip install -e .
