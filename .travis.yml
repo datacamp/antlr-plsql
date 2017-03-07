@@ -18,3 +18,4 @@ deploy:
     distributions: sdist bdist_wheel
     repo: datacamp/antlr-plsql
   skip_cleanup: true
+  skip_upload_docs: true
