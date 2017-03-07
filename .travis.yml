@@ -1,10 +1,19 @@
 sudo: false
 language: python
 services:
-  - docker
-
+- docker
 before_install:
-  - docker build -t antlr_plsql .
-
+- docker build -t antlr_plsql .
 script: docker run antlr_plsql make build test
-after_script: '([ "${TRAVIS_BRANCH}" = "dev" ] || [ "${TRAVIS_BRANCH}" = "master" ]) && docker run -e GH_TOKEN -e TRAVIS_BRANCH -e TRAVIS_TAG -e TRAVIS_COMMIT antlr_plsql make clean deploy'
+after_script: ([ "${TRAVIS_BRANCH}" = "dev" ] || [ "${TRAVIS_BRANCH}" = "master" ])
+  && docker run -e GH_TOKEN -e TRAVIS_BRANCH -e TRAVIS_TAG -e TRAVIS_COMMIT antlr_plsql
+  make clean deploy
+deploy:
+  provider: pypi
+  user: machow
+  password:
+    secure: cqCj0PiURWEpLgjvWYtpuZ4O/1flY9S5NTF5XoCrLaw6cfjCJ4AU66InoV4eUiWNyF881Bui1dsbWJ8UftIUVGFGpUDzQMBPnQAdkjQcsSXt+iP81qBfoOATcc5TuMbnPJT1IHCpVGCzci30FQk1/XObxHHvIVpAU6Vz3MHlZ4IpNWSjOtHj43hW60cJnqwG7qp6V+OZ0mQbMgW+1uPxDRhylrAx/VNSEgkTzvUUL77hZS3Bta4Aazomf3kmSvrp1pgO6C+ww+UW+9lCrhOO8IVJ3MDZmo91RVmOor+qwRP2is1rmfdj9AJR5G72ehDXoR1hkKpCwbQlda7jmmy2AVbb7MxZ8S4Tt+A0dtFQVYre3D9jJ+FBGjPCkXzqj9aK4zyHEgZWrGktOztL/8/3ZVkRj6DUh9turDEVno85VsBNgIjiF9vvJw2NJDmc8m3GBP+LM1oy9XUA11s9r2/D1ZkxQZKKNEZSqXw0noBx30CKZdDCQwB7DPxZzKFxMhhd6ofrJqKlVe0ydh0FRcExuyUBAc6Jhua/mZZqiI5gUYe+Nws+S+cCp9sR8hoyzZ7MOq+I8sjUiywNuM1u1XtP7nTE14lPR8bZyrDvCPrYXFb62ZHcPrR3QpVeqOkL9NIV+kPLvdyFXwQ+76D+XNFJLwXVlf8Ab2Uph8Ch5mADp2A=
+  on:
+    tags: true
+    distributions: sdist bdist_wheel
+    repo: datacamp/antlr-plsql
