@@ -17,3 +17,4 @@ deploy:
     tags: true
     distributions: sdist bdist_wheel
     repo: datacamp/antlr-plsql
+  skip_cleanup: true
