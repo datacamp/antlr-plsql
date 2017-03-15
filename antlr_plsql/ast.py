@@ -15,13 +15,18 @@ import json
 # TODO: Finish Unary+Binary Expr
 #       sql_script
 
-def parse(sql_text, start='sql_script'):
+def parse(sql_text, start='sql_script', strict=False):
     input_stream = InputStream(sql_text)
 
     lexer = plsqlLexer(input_stream)
     token_stream = CommonTokenStream(lexer)
     parser = plsqlParser(token_stream)
     ast = AstVisitor()     
+
+    if strict:
+        error_listener = CustomErrorListener()
+        parser.addErrorListener(error_listener)
+
     return ast.visit(getattr(parser, start)())
 
 def dump_node(obj):
@@ -264,3 +269,26 @@ class AstVisitor(plsqlVisitor):
 
     visitParenExpr = visitAtom
     visitParenBinaryExpr = visitAtom
+
+from antlr4.error.ErrorListener import ErrorListener
+from antlr4.error.Errors import RecognitionException
+class AntlrException(Exception):
+    def __init__(self, msg, orig):
+        self.msg, self.orig = msg, orig
+
+class CustomErrorListener(ErrorListener):
+    def syntaxError(self, recognizer, badSymbol, line, col, msg, e):
+        if e is not None:
+            msg = "line {line}: {col} {msg}".format(line=line, col=col, msg=msg)
+            raise AntlrException(msg, e)
+        else:
+            raise AntlrException(msg, None)
+
+    #def reportAmbiguity(self, recognizer, dfa, startIndex, stopIndex, exact, ambigAlts, configs):
+    #    raise Exception("TODO")
+
+    #def reportAttemptingFullContext(self, recognizer, dfa, startIndex, stopIndex, conflictingAlts, configs):
+    #    raise Exception("TODO")
+
+    #def reportContextSensitivity(self, recognizer, dfa, startIndex, stopIndex, prediction, configs):
+    #    raise Exception("TODO")
