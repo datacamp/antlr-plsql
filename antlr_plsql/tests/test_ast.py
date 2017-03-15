@@ -1,6 +1,10 @@
 import pytest
 from antlr_plsql import ast
 
+def test_ast_parse_strict():
+    with pytest.raises(ast.AntlrException):
+        ast.parse("SELECT x FROM ____", strict = True)   # ____ is ungrammatical
+
 def test_unparsed_to_text():
     sql_txt = "SELECT CURSOR (SELECT a FROM b) FROM c"
     tree = ast.parse(sql_txt)
