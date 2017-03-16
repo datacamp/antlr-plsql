@@ -18,4 +18,5 @@ setup(
         description = 'A procedural sql parser, written in Antlr4',
         author = 'Michael Chow',
         author_email = 'michael@datacamp.com',
-        url = 'https://github.com/datacamp/antlr-plsql')
+        url = 'https://github.com/datacamp/antlr-plsql',
+        include_package_data = True)
