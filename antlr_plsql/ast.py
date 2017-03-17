@@ -29,9 +29,10 @@ def parse(sql_text, start='sql_script', strict=False):
 
     return ast.visit(getattr(parser, start)())
 
+from collections import OrderedDict
 def dump_node(obj):
     if isinstance(obj, AstNode):
-        fields = {}
+        fields = OrderedDict()
         for name in obj._get_field_names():
             attr = getattr(obj, name)
             if   isinstance(attr, AstNode): fields[name] = attr._dump()
@@ -135,7 +136,7 @@ class AliasExpr(AstNode):
     _fields = ['expr', 'alias']
 
 class BinaryExpr(AstNode):
-    _fields = ['op', 'left', 'right']
+    _fields = ['left', 'op', 'right']
 
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
