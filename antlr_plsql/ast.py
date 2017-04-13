@@ -9,8 +9,6 @@ from .plsqlLexer import plsqlLexer
 from .plsqlParser import plsqlParser
 from .plsqlVisitor import plsqlVisitor
 
-import json
-
 # AST -------------------------------------------------------------------------
 # TODO: Finish Unary+Binary Expr
 #       sql_script
@@ -29,79 +27,7 @@ def parse(sql_text, start='sql_script', strict=False):
 
     return ast.visit(getattr(parser, start)())
 
-from collections import OrderedDict
-def dump_node(obj):
-    if isinstance(obj, AstNode):
-        fields = OrderedDict()
-        for name in obj._get_field_names():
-            attr = getattr(obj, name)
-            if   isinstance(attr, AstNode): fields[name] = attr._dump()
-            elif isinstance(attr, list):    fields[name] = [dump_node(x) for x in attr]
-            else:                           fields[name] = attr
-        return {'type': obj.__class__.__name__, 'data': fields}
-    else:
-        return obj
-
-class AstNode(AST):         # AST is subclassed only so we can use ast.NodeVisitor...
-    _fields = []            # contains child nodes to visit
-    _priority = 1           # whether to descend for selection (greater descends into lower)
-
-    # default visiting behavior, which uses fields
-    def __init__(self, ctx, visitor):
-        self._ctx = ctx
-
-        for mapping in self._fields:
-            # parse mapping for -> and indices [] -----
-            k, *name = mapping.split('->')
-            name = k if not name else name[0]
-
-            # get node -----
-            #print(k)
-            child = getattr(ctx, k, getattr(ctx, name, None))
-            # when not alias needs to be called
-            if callable(child): child = child()
-            # when alias set on token, need to go from CommonToken -> Terminal Node
-            elif isinstance(child, CommonToken):
-                # giving a name to lexer rules sets it to a token,
-                # rather than the terminal node corresponding to that token
-                # so we need to find it in children
-                child = next(filter(lambda c: getattr(c, 'symbol', None) is child, ctx.children))
-
-            # set attr -----
-            if isinstance(child, list):
-                setattr(self, name, [visitor.visit(el) for el in child])
-            elif child:
-                setattr(self, name, visitor.visit(child))
-            else:
-                setattr(self, name, child)
-
-    def _get_field_names(self):
-        return [el.split('->')[-1] for el in self._fields]
-
-    def _get_text(self, text):
-        return text[self._ctx.start.start: self._ctx.stop.stop + 1]
-
-    def _dump(self):
-        return dump_node(self)
-
-    def _dumps(self):
-        return json.dumps(self._dump())
-
-    def _load(self):
-        raise NotImplementedError()
-
-    def _loads(self):
-        raise NotImplementedError()
-
-    def __str__(self):
-        els = [k for k in self._get_field_names() if getattr(self, k) is not None]
-        return "{}: {}".format(self.__class__.__name__, ", ".join(els))
-
-    def __repr__(self):
-        field_reps = {k: repr(getattr(self, k)) for k in self._get_field_names() if getattr(self, k) is not None}
-        args = ", ".join("{} = {}".format(k, v) for k, v in field_reps.items())
-        return "{}({})".format(self.__class__.__name__, args)
-            
+from antlr_ast import AstNode
 
 class Unshaped(AstNode):
     _fields = ['arr']
@@ -114,10 +40,15 @@ class Script(AstNode):
     _fields = ['body']
     _priority = 0
 
-    def __init__(self, ctx, visitor):
-        self._ctx = ctx
-        self.body = [visitor.visit(child) for child in ctx.children
-                                if not isinstance(child, Tree.TerminalNodeImpl)] # filter semi colons
+    @classmethod
+    def _from_sql_script(cls, visitor, ctx):
+        body = []
+
+        for child in ctx.children:
+            if not isinstance(child, Tree.TerminalNodeImpl):
+                body.append(visitor.visit(child))
+
+        return cls(ctx, body = body)
 
 class SelectStmt(AstNode):
     _fields = ['pref', 'target_list', 'into_clause', 'from_clause', 'where_clause',
@@ -129,8 +60,9 @@ class SelectStmt(AstNode):
 class Identifier(AstNode):
     _fields = ['fields']
 
+# TODO
 class Star(AstNode):
-    def __init__(self, ctx, *args, **kwargs): self._ctx = ctx
+    _fields = []
 
 class AliasExpr(AstNode):
     _fields = ['expr', 'alias']
@@ -157,10 +89,14 @@ class AstVisitor(plsqlVisitor):
             childResult = c.accept(self)
             result = self.aggregateResult(result, childResult)
 
+        return self.result_to_ast(node, result)
+
+    @staticmethod
+    def result_to_ast(node, result):
         if len(result) == 1: return result[0]
         elif len(result) == 0: return None
         elif all(isinstance(res, str) for res in result): return " ".join(result)
-        elif all(isinstance(res, AstNode) for res in result): return result
+        elif all(isinstance(res, AstNode) and not isinstance(res, Unshaped) for res in result): return result
         else: return Unshaped(node, result)
 
     def defaultResult(self):
@@ -174,7 +110,7 @@ class AstVisitor(plsqlVisitor):
         return ctx.getText()
 
     def visitSql_script(self, ctx):
-        return Script(ctx, self)
+        return Script._from_sql_script(self, ctx)
 
     def visitSubqueryParen(self, ctx):
         return self.visit(ctx.subquery())
@@ -182,16 +118,16 @@ class AstVisitor(plsqlVisitor):
     def visitSubqueryCompound(self, ctx):
         # TODO: here we form UNION statements etc into binary expr, but should
         #       use a compound statement as in official ast
-        return BinaryExpr(ctx, self)
+        return BinaryExpr._from_fields(self, ctx)
 
     def visitQuery_block(self, ctx):
-        return SelectStmt(ctx, self)
+        return SelectStmt._from_fields(self, ctx)
 
     def visitDot_id(self, ctx):
-        return Identifier(ctx, self)
+        return Identifier._from_fields(self, ctx)
 
     def visitStar(self, ctx):
-        return Star(ctx, self)
+        return Star._from_fields(self, ctx)
 
     def visitStarTable(self, ctx):
         identifier = self.visit(ctx.dot_id())
@@ -200,15 +136,15 @@ class AstVisitor(plsqlVisitor):
 
     def visitAlias_expr(self, ctx):
         if ctx.alias:
-            return AliasExpr(ctx, self)
+            return AliasExpr._from_fields(self, ctx)
         else:
             return self.visitChildren(ctx)
 
     def visitBinaryExpr(self, ctx):
-        return BinaryExpr(ctx, self)
+        return BinaryExpr._from_fields(self, ctx)
         
     def visitUnaryExpr(self, ctx):
-        return UnaryExpr(ctx, self)
+        return UnaryExpr._from_fields(self, ctx)
 
     #def visitIs_part(self, ctx):
     #    return ctx
