@@ -219,6 +219,9 @@ class AstVisitor(plsqlVisitor):
     def visitGroup_by_clause(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNodeImpl))
 
+    def visitExpression_list(self, ctx):
+        return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
+
     def visitOrder_by_clause(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.ORDER() and n is not ctx.BY())
 
