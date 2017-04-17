@@ -27,6 +27,14 @@ def parse(sql_text, start='sql_script', strict=False):
 
     return ast.visit(getattr(parser, start)())
 
+import yaml
+def parse_from_yaml(fname):
+    data = yaml.load(open(fname)) if isinstance(fname, str) else fname
+    out = {}
+    for start, cmds in data.items():
+        out[start] = [parse(cmd, start) for cmd in cmds]
+    return out
+
 from antlr_ast import AstNode
 
 class Unshaped(AstNode):
