@@ -1554,42 +1554,46 @@ quantified_expression
     ;
 
 standard_function
-    : over_clause_keyword function_argument_analytic over_clause?
-    | /*TODO stantard_function_enabling_using*/ regular_id function_argument_modeling using_clause?
-    | COUNT '(' ( '*' | (DISTINCT | UNIQUE | ALL)? concatenation) ')' over_clause?
-    | (CAST | XMLCAST) '(' (MULTISET '(' subquery ')' | concatenation) AS type_spec ')'
-    | CHR '(' concatenation USING NCHAR_CS ')'
-    | COLLECT '(' (DISTINCT | UNIQUE)? concatenation collect_order_by_part? ')'
-    | within_or_over_clause_keyword function_argument within_or_over_part+
-    | DECOMPOSE '(' concatenation (CANONICAL | COMPATIBILITY)? ')'
-    | EXTRACT '(' regular_id FROM concatenation ')'
-    | (FIRST_VALUE | LAST_VALUE) function_argument_analytic respect_or_ignore_nulls? over_clause
-    | standard_prediction_function_keyword 
-      '(' expression (',' expression)* cost_matrix_clause? using_clause? ')'
-    | TRANSLATE '(' expression (USING (CHAR_CS | NCHAR_CS))? (',' expression)* ')'
-    | TREAT '(' expression AS REF? type_spec ')'
-    | TRIM '(' ((LEADING | TRAILING | BOTH)? quoted_string? FROM)? concatenation ')'
-    | XMLAGG '(' expression order_by_clause? ')' ('.' general_element)?
+    : aggregate_windowed_function                                                                               #AggregateCall
+    | regular_id function_argument_modeling using_clause?                                                       #TodoCall
+    | (CAST | XMLCAST) '(' (MULTISET '(' subquery ')' | concatenation) AS type_spec ')'                         #TodoCall
+    | CHR '(' concatenation USING NCHAR_CS ')'                                                                  #TodoCall
+    | COLLECT '(' (DISTINCT | UNIQUE)? concatenation collect_order_by_part? ')'                                 #TodoCall
+    | within_or_over_clause_keyword function_argument within_or_over_part+                                      #TodoCall
+    | DECOMPOSE '(' concatenation (CANONICAL | COMPATIBILITY)? ')'                                              #TodoCall
+    | EXTRACT '(' regular_id FROM concatenation ')'                                                             #TodoCall
+    | (FIRST_VALUE | LAST_VALUE) function_argument_analytic respect_or_ignore_nulls? over_clause                #TodoCall
+    | standard_prediction_function_keyword
+      '(' expression (',' expression)* cost_matrix_clause? using_clause? ')'                                    #TodoCall
+    | TRANSLATE '(' expression (USING (CHAR_CS | NCHAR_CS))? (',' expression)* ')'                              #TodoCall
+    | TREAT '(' expression AS REF? type_spec ')'                                                                #TodoCall
+    | TRIM '(' ((LEADING | TRAILING | BOTH)? quoted_string? FROM)? concatenation ')'                            #TodoCall
+    | XMLAGG '(' expression order_by_clause? ')' ('.' general_element)?                                         #XmlCall
     | (XMLCOLATTVAL|XMLFOREST)
-      '(' xml_multiuse_expression_element (',' xml_multiuse_expression_element)* ')' ('.' general_element)?
-    | XMLELEMENT 
+      '(' xml_multiuse_expression_element (',' xml_multiuse_expression_element)* ')' ('.' general_element)?     #XmlCall
+    | XMLELEMENT
       '(' (ENTITYESCAPING | NOENTITYESCAPING)? (NAME | EVALNAME)? expression
        (/*TODO{input.LT(2).getText().equalsIgnoreCase("xmlattributes")}?*/ ',' xml_attributes_clause)?
-       (',' expression column_alias?)* ')' ('.' general_element)?
-    | XMLEXISTS '(' expression xml_passing_clause? ')'
-    | XMLPARSE '(' (DOCUMENT | CONTENT) concatenation WELLFORMED? ')' ('.' general_element)?
+       (',' expression column_alias?)* ')' ('.' general_element)?                                               #XmlCall
+    | XMLEXISTS '(' expression xml_passing_clause? ')'                                                          #XmlCall
+    | XMLPARSE '(' (DOCUMENT | CONTENT) concatenation WELLFORMED? ')' ('.' general_element)?                    #XmlCall
     | XMLPI
-      '(' (NAME r_id | EVALNAME concatenation) (',' concatenation)? ')' ('.' general_element)?
+      '(' (NAME r_id | EVALNAME concatenation) (',' concatenation)? ')' ('.' general_element)?                  #XmlCall
     | XMLQUERY
-      '(' concatenation xml_passing_clause? RETURNING CONTENT (NULL ON EMPTY)? ')' ('.' general_element)?
+      '(' concatenation xml_passing_clause? RETURNING CONTENT (NULL ON EMPTY)? ')' ('.' general_element)?       #XmlCall
     | XMLROOT
-      '(' concatenation (',' xmlroot_param_version_part)? (',' xmlroot_param_standalone_part)? ')' ('.' general_element)?
+      '(' concatenation (',' xmlroot_param_version_part)? (',' xmlroot_param_standalone_part)? ')' ('.' general_element)? #XmlCall
     | XMLSERIALIZE
       '(' (DOCUMENT | CONTENT) concatenation (AS type_spec)?
       xmlserialize_param_enconding_part? xmlserialize_param_version_part? xmlserialize_param_ident_part? ((HIDE | SHOW) DEFAULTS)? ')'
-      ('.' general_element)?
+      ('.' general_element)?                                                                                    #XmlCall
     | XMLTABLE
-      '(' xml_namespaces_clause? concatenation xml_passing_clause? (COLUMNS xml_table_column (',' xml_table_column))? ')' ('.' general_element)?
+      '(' xml_namespaces_clause? concatenation xml_passing_clause? (COLUMNS xml_table_column (',' xml_table_column))? ')' ('.' general_element)?  #XmlCall
+    ;
+
+aggregate_windowed_function
+    : over_clause_keyword function_argument_analytic over_clause?
+    | COUNT '(' ( args='*' | pref=(DISTINCT | UNIQUE | ALL)? concatenation) ')' over_clause?
     ;
 
 over_clause_keyword

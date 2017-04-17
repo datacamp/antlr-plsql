@@ -81,6 +81,23 @@ class BinaryExpr(AstNode):
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
 
+from collections.abc import Sequence
+class Call(AstNode):
+    _fields = ['name', 'pref', 'args', 'function_argument_analytic->args', 'concatenation->args', 'over_clause']
+
+    @staticmethod
+    def get_name(ctx): return ctx.children[0].getText().upper()
+
+    @classmethod
+    def _from_aggregate_call(cls, visitor, ctx):
+        obj = cls._from_fields(visitor, ctx)
+        obj.name = cls.get_name(ctx)
+        
+        if obj.args is None: obj.args = []
+        elif not isinstance(obj.args, Sequence): obj.args = [obj.args]
+        return obj
+
+
 # PARSE TREE VISITOR ----------------------------------------------------------
 
 class AstVisitor(plsqlVisitor):
@@ -153,6 +170,17 @@ class AstVisitor(plsqlVisitor):
         
     def visitUnaryExpr(self, ctx):
         return UnaryExpr._from_fields(self, ctx)
+
+    # function calls -------
+    def visitAggregate_windowed_function(self, ctx):
+        print('sanity check')
+        return Call._from_aggregate_call(self, ctx)
+
+    def visitFunction_argument_analytic(self, ctx):
+        if not (ctx.respect_or_ignore_nulls() or ctx.keep_clause()):
+            return [self.visit(arg) for arg in ctx.argument()]
+        else:
+            return self.visitChildren(ctx)
 
     #def visitIs_part(self, ctx):
     #    return ctx
