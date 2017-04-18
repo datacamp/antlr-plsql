@@ -1428,7 +1428,7 @@ concatenation
 binary_expression
     // MC-Note: figure out topmost time expression...
     : binary_expression (AT (LOCAL | TIME ZONE binary_expression) | interval_expression)  # BinaryExpr
-    | left=binary_expression op=('*' | '/') right=binary_expression            # BinaryExpr
+    | left=binary_expression op=('*' | '/' | '%') right=binary_expression            # BinaryExpr
     | left=binary_expression op=('+' | '-') right=binary_expression            # BinaryExpr
     | left=binary_expression op=CONCATENATION_OP right=binary_expression       # BinaryExpr
     | '(' binary_expression ')'                                                # ParenBinaryExpr
