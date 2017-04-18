@@ -77,6 +77,17 @@ class AliasExpr(AstNode):
 
 class BinaryExpr(AstNode):
     _fields = ['left', 'op', 'right']
+    _rules = ['IsExpr', 'InExpr', 'BetweenExpr', 'LikeExpr', 'RelExpr', 
+              'MemberExpr', 'AndExpr', 'OrExpr']
+
+    @classmethod
+    def _from_mod(cls, visitor, ctx):
+        bin_expr = cls._from_fields(visitor, ctx)
+        ctx_not = ctx.NOT()
+        if ctx_not:
+            return UnaryExpr(ctx, op=visitor.visit(ctx_not), expr=bin_expr)
+
+        return bin_expr
 
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
@@ -167,13 +178,15 @@ class AstVisitor(plsqlVisitor):
 
     def visitBinaryExpr(self, ctx):
         return BinaryExpr._from_fields(self, ctx)
-        
+
     def visitUnaryExpr(self, ctx):
         return UnaryExpr._from_fields(self, ctx)
 
+    def visitModExpr(self, ctx):
+        return BinaryExpr._from_mod(self, ctx)
+
     # function calls -------
     def visitAggregate_windowed_function(self, ctx):
-        print('sanity check')
         return Call._from_aggregate_call(self, ctx)
 
     def visitFunction_argument_analytic(self, ctx):
@@ -188,8 +201,11 @@ class AstVisitor(plsqlVisitor):
     # many outer label visitors ----------------------------------------------
 
     # expression conds
+    # TODO replace with for loop over AST classes
     visitIsExpr =     visitBinaryExpr
-    #visitInExpr =    visitBinaryExpr
+    visitInExpr =    visitBinaryExpr
+    visitBetweenExpr = visitBinaryExpr
+    visitLikeExpr = visitBinaryExpr
     visitRelExpr =    visitBinaryExpr
     visitMemberExpr = visitBinaryExpr
     visitCursorExpr = visitUnaryExpr
@@ -245,6 +261,13 @@ class AstVisitor(plsqlVisitor):
 
     visitParenExpr = visitAtom
     visitParenBinaryExpr = visitAtom
+
+# TODO: for some reason can't get this to work as in tsql
+#import inspect
+#for item in list(globals().values()):
+#    if inspect.isclass(item) and issubclass(item, AstNode):
+#        item._bind_to_visitor(AstVisitor)
+
 
 from antlr4.error.ErrorListener import ErrorListener
 from antlr4.error.Errors import RecognitionException

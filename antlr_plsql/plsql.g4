@@ -1329,7 +1329,9 @@ condition
 
 expression
     : left=expression op=IS right=is_part                                     # IsExpr
-    | expression in_part                                                      # InExpr
+    | left=expression NOT? op=IN in_elements                                  # InExpr
+    | left=expression NOT? op=BETWEEN right=expression AND right=expression   # BetweenExpr
+    | left=expression NOT? op=like_type right=expression (ESCAPE right=expression)? # LikeExpr
     | left=expression op=relational_operator right=expression                 # RelExpr
     | left=expression op=(MEMBER | SUBMULTISET) OF? right=binary_expression   # MemberExpr
     | op=CURSOR expr=cursor_part                                              # CursorExpr
@@ -1345,10 +1347,6 @@ is_part
         NULL | NAN | PRESENT | INFINITE | A_LETTER SET | EMPTY | 
         OF TYPE? '(' ONLY? type_spec (',' type_spec)* ')'
         )
-    ;
-
-in_part
-    : NOT? (IN in_elements | BETWEEN between_elements | like_type concatenation like_escape_part?)
     ;
 
 cursor_part
