@@ -1,0 +1,51 @@
+parser_name: plsql
+code:
+    sql_script:
+        - "SELECT x FROM y"
+        - "SELECT x FROM y;"
+        - "SELECT a, b FROM y;"
+        - "SELECT * FROM y;"
+        - "SELECT DISTINCT x FROM y;"
+        - "SELECT COUNT(*) FROM y"
+        - "SELECT x FROM y LIMIT 1"
+        - "SELECT x FROM y ORDER BY a, b ASC NULLS FIRST"
+    selected_element:
+        - "x AS y"
+        - "x / 60 AS y"
+        - "COUNT(x) * 100 / COUNT(*) AS perc_dead"
+    standard_function:
+        - "SUM(x)"
+        - "MIN(x)"
+        # TODO: PARTITION BY shaping not implemented yet
+        - "MAX(x) OVER (PARTITION BY a)"
+        - "COUNT(DISTINCT x)"
+    where_clause:
+        # Note: current_of_clause returns unshaped
+        - "WHERE x > 1"
+        - "WHERE a = 1 OR b = 2"
+        - "WHERE (a = 1 OR b = 2) AND (c = 3 OR d = 4)"
+        # valid in postgres! (don't know what it does)
+        - "WHERE (1, 2, 3)"
+    expression:
+        - "a BETWEEN 1994 AND 2000"
+        - "a IN (1, 2, 3 + 4, x)"
+        - "a IN (SELECT x FROM y)"
+        - "x IS NULL"
+        - "x IS NOT NULL"
+        - "x LIKE '%how'"
+        - "x LIKE '_r%'"
+        - "x NOT LIKE '_r%'"
+        - "AVG(x)"
+        - "x / 60"
+        - "MIN(x) % 2"
+        - "MAX(x) - MIN(x)"
+    order_by_clause:
+        - "ORDER BY imdb_score DESC"
+        - "ORDER BY birthdate, name"
+        # TODO: Siblings not put on AST, does it matter?
+        - "ORDER SIBLINGS BY a, b, ASC NULLS FIRST"
+    group_by_clause:
+        - "GROUP BY x"
+        - "GROUP BY x HAVING x > 10"
+    having_clause:
+        - "HAVING x > 10"

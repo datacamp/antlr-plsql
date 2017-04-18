@@ -27,6 +27,14 @@ def parse(sql_text, start='sql_script', strict=False):
 
     return ast.visit(getattr(parser, start)())
 
+import yaml
+def parse_from_yaml(fname):
+    data = yaml.load(open(fname)) if isinstance(fname, str) else fname
+    out = {}
+    for start, cmds in data.items():
+        out[start] = [parse(cmd, start) for cmd in cmds]
+    return out
+
 from antlr_ast import AstNode
 
 class Unshaped(AstNode):
@@ -52,10 +60,24 @@ class Script(AstNode):
 
 class SelectStmt(AstNode):
     _fields = ['pref', 'target_list', 'into_clause', 'from_clause', 'where_clause',
-               'hierarchical_query_clause', 'group_by_clause', 'model_clause', 
+               'hierarchical_query_clause', 'group_by_clause', 'having_clause', 'model_clause', 
                'for_update_clause', 'order_by_clause', 'limit_clause']
 
     _priority = 1
+
+    @classmethod
+    def _from_query_block(cls, visitor, ctx):
+        # allowing arbitrary order for some clauses, means their results are lists w/single item
+        # could also do testing to make sure clauses weren't specified multiple times
+        query = cls._from_fields(visitor, ctx)
+        unlist_clauses = cls._fields[cls._fields.index('group_by_clause'): ]
+        for k in unlist_clauses:
+            attr = getattr(query, k, [])
+            if isinstance(attr, list):
+                setattr(query, k, attr[0] if len(attr) == 1 else None)
+
+        return query
+
 
 class Identifier(AstNode):
     _fields = ['fields']
@@ -69,9 +91,45 @@ class AliasExpr(AstNode):
 
 class BinaryExpr(AstNode):
     _fields = ['left', 'op', 'right']
+    _rules = ['IsExpr', 'InExpr', 'BetweenExpr', 'LikeExpr', 'RelExpr', 
+              'MemberExpr', 'AndExpr', 'OrExpr']
+
+    @classmethod
+    def _from_mod(cls, visitor, ctx):
+        bin_expr = cls._from_fields(visitor, ctx)
+        ctx_not = ctx.NOT()
+        if ctx_not:
+            return UnaryExpr(ctx, op=visitor.visit(ctx_not), expr=bin_expr)
+
+        return bin_expr
 
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
+
+class OrderByExpr(AstNode):
+    _fields = ['order_by_elements->expr']
+    #_rules = ['order_by_clause']
+
+class SortBy(AstNode):
+    _fields = ['expression->expr', 'direction', 'nulls']
+    #_rules = ['order_by_elements']
+
+from collections.abc import Sequence
+class Call(AstNode):
+    _fields = ['name', 'pref', 'args', 'function_argument_analytic->args', 'concatenation->args', 'over_clause']
+
+    @staticmethod
+    def get_name(ctx): return ctx.children[0].getText().upper()
+
+    @classmethod
+    def _from_aggregate_call(cls, visitor, ctx):
+        obj = cls._from_fields(visitor, ctx)
+        obj.name = cls.get_name(ctx)
+        
+        if obj.args is None: obj.args = []
+        elif not isinstance(obj.args, Sequence): obj.args = [obj.args]
+        return obj
+
 
 # PARSE TREE VISITOR ----------------------------------------------------------
 
@@ -121,7 +179,7 @@ class AstVisitor(plsqlVisitor):
         return BinaryExpr._from_fields(self, ctx)
 
     def visitQuery_block(self, ctx):
-        return SelectStmt._from_fields(self, ctx)
+        return SelectStmt._from_query_block(self, ctx)
 
     def visitDot_id(self, ctx):
         return Identifier._from_fields(self, ctx)
@@ -139,12 +197,31 @@ class AstVisitor(plsqlVisitor):
             return AliasExpr._from_fields(self, ctx)
         else:
             return self.visitChildren(ctx)
+    
+    def visitOrder_by_clause(self, ctx):
+        return OrderByExpr._from_fields(self, ctx)
+
+    def visitOrder_by_elements(self, ctx):
+        return SortBy._from_fields(self, ctx)
 
     def visitBinaryExpr(self, ctx):
         return BinaryExpr._from_fields(self, ctx)
-        
+
     def visitUnaryExpr(self, ctx):
         return UnaryExpr._from_fields(self, ctx)
+
+    def visitModExpr(self, ctx):
+        return BinaryExpr._from_mod(self, ctx)
+
+    # function calls -------
+    def visitAggregate_windowed_function(self, ctx):
+        return Call._from_aggregate_call(self, ctx)
+
+    def visitFunction_argument_analytic(self, ctx):
+        if not (ctx.respect_or_ignore_nulls() or ctx.keep_clause()):
+            return [self.visit(arg) for arg in ctx.argument()]
+        else:
+            return self.visitChildren(ctx)
 
     #def visitIs_part(self, ctx):
     #    return ctx
@@ -152,8 +229,11 @@ class AstVisitor(plsqlVisitor):
     # many outer label visitors ----------------------------------------------
 
     # expression conds
+    # TODO replace with for loop over AST classes
     visitIsExpr =     visitBinaryExpr
-    #visitInExpr =    visitBinaryExpr
+    visitInExpr =    visitBinaryExpr
+    visitBetweenExpr = visitBinaryExpr
+    visitLikeExpr = visitBinaryExpr
     visitRelExpr =    visitBinaryExpr
     visitMemberExpr = visitBinaryExpr
     visitCursorExpr = visitUnaryExpr
@@ -183,8 +263,11 @@ class AstVisitor(plsqlVisitor):
     def visitGroup_by_clause(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNodeImpl))
 
-    def visitOrder_by_clause(self, ctx):
-        return self.visitChildren(ctx, predicate = lambda n: n is not ctx.ORDER() and n is not ctx.BY())
+    def visitHaving_clause(self, ctx):
+        return  self.visitChildren(ctx, predicate = lambda n: n is not ctx.HAVING())
+
+    def visitExpression_list(self, ctx):
+        return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
 
     # converting case insensitive keywords to lowercase -----------------------
 
@@ -206,6 +289,13 @@ class AstVisitor(plsqlVisitor):
 
     visitParenExpr = visitAtom
     visitParenBinaryExpr = visitAtom
+
+# TODO: for some reason can't get this to work as in tsql
+#import inspect
+#for item in list(globals().values()):
+#    if inspect.isclass(item) and issubclass(item, AstNode):
+#        item._bind_to_visitor(AstVisitor)
+
 
 from antlr4.error.ErrorListener import ErrorListener
 from antlr4.error.Errors import RecognitionException
