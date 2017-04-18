@@ -199,7 +199,6 @@ class AstVisitor(plsqlVisitor):
             return self.visitChildren(ctx)
     
     def visitOrder_by_clause(self, ctx):
-        print('running order_by_clause-----------\n\n\n')
         return OrderByExpr._from_fields(self, ctx)
 
     def visitOrder_by_elements(self, ctx):

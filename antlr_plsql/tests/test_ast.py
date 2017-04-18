@@ -1,4 +1,5 @@
 import pytest
+import os
 from antlr_plsql import ast
 
 def test_ast_parse_strict():
@@ -56,3 +57,18 @@ def test_ast_select_union():
     node = ast.parse("SELECT a FROM b UNION SELECT x FROM y", 'subquery')
     assert isinstance(node, ast.BinaryExpr)
     assert node.op == "UNION"
+
+@pytest.mark.parametrize('fname', [
+        'v0.2.yml'
+        ])
+def test_ast_examples_parse(fname):
+    import yaml
+    dirname = os.path.dirname(__file__)
+    data = yaml.load(open(dirname + '/' + fname))
+    res = {}
+    for start, cmds in data['code'].items():
+        res[start] = []
+        for cmd in cmds: res[start].append([cmd, repr(ast.parse(cmd, start, strict=True))])
+    print(res)
+    with open(dirname + '/dump_' + fname, 'w') as out_f:
+        yaml.dump(res, out_f)
