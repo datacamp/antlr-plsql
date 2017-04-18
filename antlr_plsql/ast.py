@@ -65,6 +65,20 @@ class SelectStmt(AstNode):
 
     _priority = 1
 
+    @classmethod
+    def _from_query_block(cls, visitor, ctx):
+        # allowing arbitrary order for some clauses, means their results are lists w/single item
+        # could also do testing to make sure clauses weren't specified multiple times
+        query = cls._from_fields(visitor, ctx)
+        unlist_clauses = cls._fields[cls._fields.index('group_by_clause'): ]
+        for k in unlist_clauses:
+            attr = getattr(query, k, [])
+            if isinstance(attr, list):
+                setattr(query, k, attr[0] if len(attr) == 1 else None)
+
+        return query
+
+
 class Identifier(AstNode):
     _fields = ['fields']
 
@@ -91,6 +105,14 @@ class BinaryExpr(AstNode):
 
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
+
+class OrderByExpr(AstNode):
+    _fields = ['order_by_elements->expr']
+    #_rules = ['order_by_clause']
+
+class SortBy(AstNode):
+    _fields = ['expression->expr', 'direction', 'nulls']
+    #_rules = ['order_by_elements']
 
 from collections.abc import Sequence
 class Call(AstNode):
@@ -157,7 +179,7 @@ class AstVisitor(plsqlVisitor):
         return BinaryExpr._from_fields(self, ctx)
 
     def visitQuery_block(self, ctx):
-        return SelectStmt._from_fields(self, ctx)
+        return SelectStmt._from_query_block(self, ctx)
 
     def visitDot_id(self, ctx):
         return Identifier._from_fields(self, ctx)
@@ -175,6 +197,13 @@ class AstVisitor(plsqlVisitor):
             return AliasExpr._from_fields(self, ctx)
         else:
             return self.visitChildren(ctx)
+    
+    def visitOrder_by_clause(self, ctx):
+        print('running order_by_clause-----------\n\n\n')
+        return OrderByExpr._from_fields(self, ctx)
+
+    def visitOrder_by_elements(self, ctx):
+        return SortBy._from_fields(self, ctx)
 
     def visitBinaryExpr(self, ctx):
         return BinaryExpr._from_fields(self, ctx)
@@ -235,11 +264,11 @@ class AstVisitor(plsqlVisitor):
     def visitGroup_by_clause(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNodeImpl))
 
+    def visitHaving_clause(self, ctx):
+        return  self.visitChildren(ctx, predicate = lambda n: n is not ctx.HAVING())
+
     def visitExpression_list(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
-
-    def visitOrder_by_clause(self, ctx):
-        return self.visitChildren(ctx, predicate = lambda n: n is not ctx.ORDER() and n is not ctx.BY())
 
     # converting case insensitive keywords to lowercase -----------------------
 

@@ -927,7 +927,7 @@ subquery_operation_part
 query_block
     // MC-Note: from_clause should be optional
     : SELECT pref=(DISTINCT | UNIQUE | ALL)? (target_list+=selected_element (',' target_list+=selected_element)*)
-      into_clause? from_clause where_clause? hierarchical_query_clause? (group_by_clause|having_clause)* model_clause?
+      into_clause? from_clause where_clause? hierarchical_query_clause? (group_by_clause | having_clause)* model_clause?
       (for_update_clause | order_by_clause | limit_clause)*
     ;
 
@@ -1131,7 +1131,7 @@ order_by_clause
     ;
 
 order_by_elements
-    : expression (ASC | DESC)? (NULLS (FIRST | LAST))?
+    : expression direction=(ASC | DESC)? (NULLS nulls=(FIRST | LAST))?
     ;
 
 for_update_clause
