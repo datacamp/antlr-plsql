@@ -60,7 +60,7 @@ class Script(AstNode):
 
 class SelectStmt(AstNode):
     _fields = ['pref', 'target_list', 'into_clause', 'from_clause', 'where_clause',
-               'hierarchical_query_clause', 'group_by_clause', 'model_clause', 
+               'hierarchical_query_clause', 'group_by_clause', 'having_clause', 'model_clause', 
                'for_update_clause', 'order_by_clause', 'limit_clause']
 
     _priority = 1
