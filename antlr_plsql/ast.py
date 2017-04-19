@@ -114,6 +114,20 @@ class SortBy(AstNode):
     _fields = ['expression->expr', 'direction', 'nulls']
     #_rules = ['order_by_elements']
 
+class JoinExpr(AstNode):
+    _fields = ['left', 'join_type', 'table_ref->right',
+               'join_on_part->cond', 
+               # fields below are Oracle specific
+               'join_using_part->using', 'query_partition_clause']
+
+    @classmethod
+    def _from_table_ref(cls, visitor, ctx):
+        join_expr = cls._from_fields(visitor, ctx.join_clause())
+        join_expr._ctx = ctx
+        join_expr.left = visitor.visit(ctx.table_ref())
+
+        return join_expr
+
 from collections.abc import Sequence
 class Call(AstNode):
     _fields = ['name', 'pref', 'args', 'function_argument_analytic->args', 'concatenation->args', 'over_clause']
@@ -213,6 +227,9 @@ class AstVisitor(plsqlVisitor):
     def visitModExpr(self, ctx):
         return BinaryExpr._from_mod(self, ctx)
 
+    def visitJoinExpr(self, ctx):
+        return JoinExpr._from_table_ref(self, ctx)
+
     # function calls -------
     def visitAggregate_windowed_function(self, ctx):
         return Call._from_aggregate_call(self, ctx)
@@ -268,6 +285,13 @@ class AstVisitor(plsqlVisitor):
 
     def visitExpression_list(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
+
+    def visitJoin_on_part(self, ctx):
+        return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
+
+    def visitJoin_using_part(self, ctx):
+        return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
+
 
     # converting case insensitive keywords to lowercase -----------------------
 

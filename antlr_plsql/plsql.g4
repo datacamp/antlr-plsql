@@ -952,8 +952,8 @@ table_ref_pivot
     ;
 
 table_ref
-    : table_ref join_clause
-    | table_ref_aux flashback_query_clause* table_alias?
+    : table_ref join_clause                                     #JoinExpr
+    | table_ref_aux flashback_query_clause* table_alias?        #TableRefAux
     ;
 
 table_ref_aux
@@ -962,10 +962,9 @@ table_ref_aux
     ;
 
 join_clause
-    : query_partition_clause? (CROSS | NATURAL)? (INNER | outer_join_type)? 
-      JOIN table_ref query_partition_clause? (join_on_part | join_using_part)*
+    : query_partition_clause? join_type?
+        JOIN table_ref query_partition_clause? (join_on_part | join_using_part)?
     ;
-
 
 join_on_part
     : ON condition
@@ -975,8 +974,10 @@ join_using_part
     : USING '(' column_name (',' column_name)* ')'
     ;
 
-outer_join_type
-    : (FULL | LEFT | RIGHT) OUTER?
+join_type
+    : CROSS 
+    | NATURAL? ( INNER | 
+                 (FULL | LEFT | RIGHT) OUTER? )
     ;
 
 query_partition_clause
