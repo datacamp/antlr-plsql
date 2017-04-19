@@ -940,33 +940,32 @@ selected_element
     ;
 
 from_clause
-    : FROM table_ref_list
-    ;
-
-table_ref_list
-    : table_ref (',' table_ref)*
+    : FROM table_ref (',' table_ref)*
     ;
 
 // NOTE to PIVOT clause
 // according the SQL reference this should not be possible
 // according to he reality it is. Here we probably apply pivot/unpivot onto whole join clause
 // eventhough it is not enclosed in parenthesis. See pivot examples 09,10,11
+table_ref_pivot
+    : table_ref (pivot_clause | unpivot_clause)?
+    ;
+
 table_ref
-    : table_ref_aux join_clause* (pivot_clause | unpivot_clause)?
+    : table_ref join_clause
+    | table_ref_aux flashback_query_clause* table_alias?
     ;
 
 table_ref_aux
-    : (dml_table_expression_clause (pivot_clause | unpivot_clause)?
-      | '(' table_ref subquery_operation_part* ')' (pivot_clause | unpivot_clause)?
-      | ONLY '(' dml_table_expression_clause ')'
-      | dml_table_expression_clause (pivot_clause | unpivot_clause)?)
-    flashback_query_clause* (/*{isTableAlias()}?*/ table_alias)?
+    : dml_table_expression_clause (pivot_clause | unpivot_clause)?
+    | ONLY '(' dml_table_expression_clause ')'
     ;
 
 join_clause
     : query_partition_clause? (CROSS | NATURAL)? (INNER | outer_join_type)? 
-      JOIN table_ref_aux query_partition_clause? (join_on_part | join_using_part)*
+      JOIN table_ref query_partition_clause? (join_on_part | join_using_part)*
     ;
+
 
 join_on_part
     : ON condition
