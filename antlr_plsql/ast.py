@@ -249,7 +249,7 @@ class AstVisitor(plsqlVisitor):
         return self.visitChildren(ctx, predicate = lambda n: n is not ctx.WHERE())
 
     def visitFrom_clause(self, ctx):
-        return  self.visitChildren(ctx, predicate = lambda n: n is not ctx.FROM())
+        return  self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
 
     def visitLimit_clause(self, ctx):
         return  self.visitChildren(ctx, predicate = lambda n: n is not ctx.LIMIT())
