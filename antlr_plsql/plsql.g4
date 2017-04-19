@@ -1327,10 +1327,10 @@ condition
     ;
 
 expression
-    : left=expression op=IS right=is_part                                     # IsExpr
-    | left=expression NOT? op=IN in_elements                                  # InExpr
-    | left=expression NOT? op=BETWEEN right=expression AND right=expression   # BetweenExpr
-    | left=expression NOT? op=like_type right=expression (ESCAPE right=expression)? # LikeExpr
+    : left=expression op=IS right=is_part                                             # IsExpr
+    | left=expression NOT? op=IN '(' right+=expression (',' right+=expression)* ')'   # InExpr
+    | left=expression NOT? op=BETWEEN right+=expression AND right+=expression         # BetweenExpr
+    | left=expression NOT? op=like_type right+=expression (ESCAPE right+=expression)? # LikeExpr
     | left=expression op=relational_operator right=expression                 # RelExpr
     | left=expression op=(MEMBER | SUBMULTISET) OF? right=binary_expression   # MemberExpr
     | op=CURSOR expr=cursor_part                                              # CursorExpr
@@ -1405,14 +1405,6 @@ like_type
 
 like_escape_part
     : ESCAPE concatenation
-    ;
-
-in_elements
-    : '(' subquery ')'
-    | '(' concatenation (',' concatenation)* ')'
-    | constant
-    | bind_variable
-    | general_element
     ;
 
 between_elements
