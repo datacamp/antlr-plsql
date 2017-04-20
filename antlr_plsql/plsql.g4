@@ -921,7 +921,7 @@ subquery
     ;
 
 subquery_operation_part
-    : (UNION ALL? | INTERSECT | EXCEPT | MINUS)
+    : (UNION | INTERSECT | EXCEPT | MINUS) ALL?
     ;
 
 query_block
