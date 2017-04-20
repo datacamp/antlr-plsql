@@ -74,7 +74,7 @@ class SelectStmt(AstNode):
         for k in unlist_clauses:
             attr = getattr(query, k, [])
             if isinstance(attr, list):
-                setattr(query, k, attr[0] if len(attr) > 1 else None)
+                setattr(query, k, attr[0] if len(attr) else None)
 
         return query
 
