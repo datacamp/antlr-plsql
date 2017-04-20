@@ -9,4 +9,14 @@ code:
         - "y JOIN (a JOIN b ON id = id) ON XXX = XXX"
         # Note: partition included on JoinExpr but currently unshaped
         - "y PARTITION BY (yid) JOIN x PARTITION BY (xid) USING acolumn"
+    subquery:
+        - "SELECT x FROM y UNION SELECT m FROM n"
+        - "SELECT x FROM y EXCEPT SELECT m FROM n"
+        - "SELECT x FROM y EXCEPT ALL SELECT m FROM n"
+        - "SELECT x FROM y UNION SELECT m FROM n ORDER BY id"
+        - "(SELECT x FROM y ORDER BY id) UNION (SELECT m FROM n ORDER BY id2)"
+        - "(SELECT a FROM b ORDER BY id1) UNION (SELECT x FROM y ORDER BY id2) ORDER BY id3"
+        - "SELECT x FROM y UNION (SELECT a FROM b UNION SELECT m FROM n) ORDER BY id"
+        # TODO grammar can't parse
+        #- "SELECT 1 UNION SELECT 2"
 
