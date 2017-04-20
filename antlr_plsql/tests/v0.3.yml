@@ -1,0 +1,12 @@
+parser_name: plsql
+code:
+    table_ref:
+        - "a JOIN b ON a.id = b.id"
+        - "a LEFT JOIN b ON id = id"
+        - "a LEFT OUTER JOIN b USING (id)"
+        - "y JOIN z ON id = id JOIN c ON XXX = XXX"
+        - "y JOIN z USING (id1, id2)"
+        - "y JOIN (a JOIN b ON id = id) ON XXX = XXX"
+        # Note: partition included on JoinExpr but currently unshaped
+        - "y PARTITION BY (yid) JOIN x PARTITION BY (xid) USING acolumn"
+
