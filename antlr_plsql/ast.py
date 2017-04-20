@@ -74,10 +74,25 @@ class SelectStmt(AstNode):
         for k in unlist_clauses:
             attr = getattr(query, k, [])
             if isinstance(attr, list):
-                setattr(query, k, attr[0] if len(attr) == 1 else None)
+                setattr(query, k, attr[0] if len(attr) > 1 else None)
 
         return query
 
+class Union(AstNode):
+    _fields = ['left', 'op', 'right', 'order_by_clause']        
+
+    @classmethod
+    def _from_subquery_compound(cls, visitor, ctx):
+        # hoists up ORDER BY clauses from the right SELECT statement
+        # since the final ORDER BY applies to the entire statement (not just subquery)
+        union = cls._from_fields(visitor, ctx)
+        if not isinstance(ctx.right, plsqlParser.SubqueryParenContext):
+            order_by = getattr(union.right, 'order_by_clause', None)
+            union.order_by_clause = order_by
+            # remove from right SELECT
+            if order_by: union.right.order_by_clause = None
+
+        return union
 
 class Identifier(AstNode):
     _fields = ['fields']
@@ -188,9 +203,7 @@ class AstVisitor(plsqlVisitor):
         return self.visit(ctx.subquery())
 
     def visitSubqueryCompound(self, ctx):
-        # TODO: here we form UNION statements etc into binary expr, but should
-        #       use a compound statement as in official ast
-        return BinaryExpr._from_fields(self, ctx)
+        return Union._from_subquery_compound(self, ctx)
 
     def visitQuery_block(self, ctx):
         return SelectStmt._from_query_block(self, ctx)
