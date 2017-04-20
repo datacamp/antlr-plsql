@@ -921,7 +921,7 @@ subquery
     ;
 
 subquery_operation_part
-    : (UNION ALL? | INTERSECT | MINUS)
+    : (UNION ALL? | INTERSECT | EXCEPT | MINUS)
     ;
 
 query_block
@@ -2718,6 +2718,7 @@ ERR:                          E R R;
 ERRORS:                       E R R O R S;
 ESCAPE:                       E S C A P E;
 EVALNAME:                     E V A L N A M E;
+EXCEPT:                       E X C E P T;
 EXCEPTION:                    E X C E P T I O N;
 EXCEPTION_INIT:               E X C E P T I O N '_' I N I T;
 EXCEPTIONS:                   E X C E P T I O N S;
