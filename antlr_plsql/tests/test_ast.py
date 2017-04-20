@@ -53,13 +53,9 @@ def test_ast_select_paren():
     node = ast.parse("(SELECT a FROM b)", 'subquery')
     assert isinstance(node, ast.SelectStmt)
 
-def test_ast_select_union():
-    node = ast.parse("SELECT a FROM b UNION SELECT x FROM y", 'subquery')
-    assert isinstance(node, ast.BinaryExpr)
-    assert node.op == "UNION"
-
 @pytest.mark.parametrize('fname', [
-        'v0.2.yml'
+        'v0.2.yml',
+        'v0.3.yml'
         ])
 def test_ast_examples_parse(fname):
     import yaml

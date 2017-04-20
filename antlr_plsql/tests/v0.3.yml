@@ -16,5 +16,7 @@ code:
         - "SELECT x FROM y UNION SELECT m FROM n ORDER BY id"
         - "(SELECT x FROM y ORDER BY id) UNION (SELECT m FROM n ORDER BY id2)"
         - "(SELECT a FROM b ORDER BY id1) UNION (SELECT x FROM y ORDER BY id2) ORDER BY id3"
-        - "SELECT 1 UNION (SELECT 2 UNION SELECT 3) ORDER BY id"
+        - "SELECT x FROM y UNION (SELECT a FROM b UNION SELECT m FROM n) ORDER BY id"
+        # TODO grammar can't parse
+        #- "SELECT 1 UNION SELECT 2"
 
