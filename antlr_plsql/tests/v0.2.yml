@@ -46,6 +46,7 @@ code:
         - "ORDER SIBLINGS BY a, b, ASC NULLS FIRST"
     group_by_clause:
         - "GROUP BY x"
-        - "GROUP BY x HAVING x > 10"
+        # Note: having moved into subquery
+        #- "GROUP BY x HAVING x > 10"
     having_clause:
         - "HAVING x > 10"
