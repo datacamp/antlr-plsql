@@ -118,6 +118,13 @@ class BinaryExpr(AstNode):
 
         return bin_expr
 
+    @classmethod
+    def _from_in_expr(cls, visitor, ctx):
+        bin_expr = cls._from_mod(visitor, ctx)
+        right = visitor.visit(ctx.subquery() or ctx.expression_list())
+        bin_expr.right = right if isinstance(right, list) else right
+        return bin_expr
+
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
 
@@ -260,10 +267,12 @@ class AstVisitor(plsqlVisitor):
 
     # expression conds
     # TODO replace with for loop over AST classes
+    def visitInExpr(self, ctx):
+        return BinaryExpr._from_in_expr(self, ctx)
+
     visitIsExpr =     visitBinaryExpr
-    visitInExpr =    visitBinaryExpr
-    visitBetweenExpr = visitBinaryExpr
-    visitLikeExpr = visitBinaryExpr
+    visitBetweenExpr = visitModExpr
+    visitLikeExpr = visitModExpr
     visitRelExpr =    visitBinaryExpr
     visitMemberExpr = visitBinaryExpr
     visitCursorExpr = visitUnaryExpr
@@ -297,7 +306,8 @@ class AstVisitor(plsqlVisitor):
         return  self.visitChildren(ctx, predicate = lambda n: n is not ctx.HAVING())
 
     def visitExpression_list(self, ctx):
-        return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
+        return [self.visit(expr) for expr in ctx.expression()]
+        #return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
 
     def visitJoin_on_part(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))

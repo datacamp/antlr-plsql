@@ -1328,7 +1328,7 @@ condition
 
 expression
     : left=expression op=IS right=is_part                                             # IsExpr
-    | left=expression NOT? op=IN '(' right+=expression (',' right+=expression)* ')'   # InExpr
+    | left=expression NOT? op=IN ( '(' subquery ')' | expression_list )               # InExpr
     | left=expression NOT? op=BETWEEN right+=expression AND right+=expression         # BetweenExpr
     | left=expression NOT? op=like_type right+=expression (ESCAPE right+=expression)? # LikeExpr
     | left=expression op=relational_operator right=expression                 # RelExpr
@@ -1351,6 +1351,7 @@ is_part
 cursor_part
     : '(' subquery ')'
     ;
+
 /*
 logical_or_expression
     : logical_and_expression
