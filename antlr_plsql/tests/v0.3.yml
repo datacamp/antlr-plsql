@@ -19,4 +19,8 @@ code:
         - "SELECT x FROM y UNION (SELECT a FROM b UNION SELECT m FROM n) ORDER BY id"
         # TODO grammar can't parse
         #- "SELECT 1 UNION SELECT 2"
+    expression:
+        # bugfixes
+        - "SELECT a FROM b WHERE a IN (SELECT x FROM y)"
+        - "SELECT a FROM b WHERE a IN (1, 1 + 1)"
 
