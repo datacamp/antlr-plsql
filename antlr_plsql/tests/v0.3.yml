@@ -21,6 +21,6 @@ code:
         #- "SELECT 1 UNION SELECT 2"
     expression:
         # bugfixes
-        - "SELECT a FROM b WHERE a IN (SELECT x FROM y)"
-        - "SELECT a FROM b WHERE a IN (1, 1 + 1)"
+        - "a IN (SELECT x FROM y)"
+        - "a IN (1, 1 + 1)"
 
