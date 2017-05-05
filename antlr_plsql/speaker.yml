@@ -1,0 +1,19 @@
+nodes:
+    AliasExpr: 'alias expression'
+    BinaryExpr: 'binary expression `{node.op}`'
+    Call: 'function call `{node.name}`'
+    # Identifier:
+    JoinExpr: 'join expression'
+    OrderByExpr: 'order by expression'
+    SelectStmt: '`SELECT` statement'
+    SortBy: 'sorting expression'
+    Star: 'star (`*`)'
+    UnaryExpr: 
+        name: 'unary expression `{node.op}`'
+        fields:
+            expr: 'code'
+    Union: '`{node.op}`'
+fields:
+    target_list: 'target list'
+    expr: 'expression'
+    op: 'operator'
