@@ -35,7 +35,7 @@ def parse_from_yaml(fname):
         out[start] = [parse(cmd, start) for cmd in cmds]
     return out
 
-from antlr_ast import AstNode
+from antlr_ast import AstNode, Speaker
 
 class Unshaped(AstNode):
     _fields = ['arr']
@@ -366,3 +366,7 @@ class CustomErrorListener(ErrorListener):
 
     #def reportContextSensitivity(self, recognizer, dfa, startIndex, stopIndex, prediction, configs):
     #    raise Exception("TODO")
+
+import pkg_resources
+speaker_cfg = yaml.load(pkg_resources.resource_stream('antlr_plsql', 'speaker.yml'))
+speaker = Speaker(**speaker_cfg)
