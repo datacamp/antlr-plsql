@@ -1,0 +1,29 @@
+nodes:
+    AliasExpr: 'alias expression'
+    BinaryExpr: 'binary expression `{node.op}`'
+    Call: 'function call `{node.name}`'
+    # Identifier:
+    JoinExpr: 'join expression'
+    OrderByExpr: 'order by expression'
+    SelectStmt: '`SELECT` statement'
+    SortBy: 'sorting expression'
+    Star: 'star (`*`)'
+    UnaryExpr: 
+        name: 'unary expression `{node.op}`'
+        fields:
+            expr: 'code'
+    Union: '`{node.op}`'
+fields:
+    target_list: 'target list'
+    expr: 'expression'
+    op: 'operator'
+    order_by_clause: '`ORDER BY` clause'
+    into_clause: '`INTO` clause'
+    from_clause: '`FROM` clause'
+    where_clause: '`WHERE` clause'
+    group_by_clause: '`GROUP BY` clause'
+    having_clause: '`HAVING` clause'
+    model_clause: '`MODEL` clause'
+    for_update_clause: '`FOR UPDATE` clause'
+    limit_clause: '`LIMIT` clause'
+    over_clause: '`OVER` clause'
