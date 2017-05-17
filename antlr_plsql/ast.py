@@ -23,6 +23,7 @@ def parse(sql_text, start='sql_script', strict=False):
 
     if strict:
         error_listener = CustomErrorListener()
+        parser.removeErrorListeners()
         parser.addErrorListener(error_listener)
 
     return ast.visit(getattr(parser, start)())
@@ -358,14 +359,17 @@ class CustomErrorListener(ErrorListener):
         else:
             raise AntlrException(msg, None)
 
-    #def reportAmbiguity(self, recognizer, dfa, startIndex, stopIndex, exact, ambigAlts, configs):
-    #    raise Exception("TODO")
+    def reportAmbiguity(self, recognizer, dfa, startIndex, stopIndex, exact, ambigAlts, configs):
+        return
+        #raise Exception("TODO")
 
-    #def reportAttemptingFullContext(self, recognizer, dfa, startIndex, stopIndex, conflictingAlts, configs):
-    #    raise Exception("TODO")
+    def reportAttemptingFullContext(self, recognizer, dfa, startIndex, stopIndex, conflictingAlts, configs):
+        return
+        #raise Exception("TODO")
 
-    #def reportContextSensitivity(self, recognizer, dfa, startIndex, stopIndex, prediction, configs):
-    #    raise Exception("TODO")
+    def reportContextSensitivity(self, recognizer, dfa, startIndex, stopIndex, prediction, configs):
+        return
+        #raise Exception("TODO")
 
 import pkg_resources
 speaker_cfg = yaml.load(pkg_resources.resource_stream('antlr_plsql', 'speaker.yml'))
