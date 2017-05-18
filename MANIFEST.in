@@ -1,1 +1,2 @@
 include antlr_plsql/js/*
+include antlr_plsql/speaker.yml
