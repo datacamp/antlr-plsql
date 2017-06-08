@@ -55,7 +55,8 @@ def test_ast_select_paren():
 
 @pytest.mark.parametrize('fname', [
         'v0.2.yml',
-        'v0.3.yml'
+        'v0.3.yml',
+        'v0.5.yml'
         ])
 def test_ast_examples_parse(fname):
     import yaml
