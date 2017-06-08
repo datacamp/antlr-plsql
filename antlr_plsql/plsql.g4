@@ -2201,7 +2201,7 @@ regular_id
     | CYCLE
     | DATA
     | DATABASE
-    //| DATE
+    | DATE
     | DAY
     | DB_ROLE_CHANGE
     | DBTIMEZONE

@@ -1,0 +1,5 @@
+parser_name: plsql
+code:
+    subquery:
+        # bugfix 
+        - "SELECT date FROM a"
