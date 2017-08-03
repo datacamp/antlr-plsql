@@ -314,6 +314,9 @@ class AstVisitor(plsqlVisitor):
         return [self.visit(expr) for expr in ctx.expression()]
         #return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
 
+    def visitInto_clause(self, ctx):
+        return [self.visit(expr) for expr in ctx.variable_name()]
+
     def visitJoin_on_part(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
 
