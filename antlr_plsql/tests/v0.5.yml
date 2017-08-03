@@ -3,3 +3,4 @@ code:
     subquery:
         # bugfix 
         - "SELECT date FROM a"
+        - "SELECT size FROM a"

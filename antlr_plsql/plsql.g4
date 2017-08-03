@@ -2466,7 +2466,7 @@ regular_id
     | SIGNTYPE
     | SIMPLE_INTEGER
     | SINGLE
-    //| SIZE
+    | SIZE
     | SKIP_
     | SMALLINT
     | SNAPSHOT
