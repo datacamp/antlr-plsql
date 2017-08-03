@@ -3,4 +3,5 @@ code:
     subquery:
         # bugfix 
         - "SELECT date FROM a"
-        - "SELECT size FROM a"
+        - "SELECT size FROM a"      # size keyword as column id
+        - "SELECT a FROM bee AS b"  # table alias using "AS"

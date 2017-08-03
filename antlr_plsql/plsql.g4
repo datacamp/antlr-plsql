@@ -1757,11 +1757,11 @@ partition_extension_clause
 
 column_alias
     : AS? (r_id | alias_quoted_string)
-    | AS
+    | AS                                // TODO: remove?
     ;
 
 table_alias
-    : (r_id | alias_quoted_string)
+    : AS? (r_id | alias_quoted_string)
     ;
 
 alias_quoted_string
