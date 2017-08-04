@@ -121,10 +121,14 @@ class BinaryExpr(AstNode):
 
     @classmethod
     def _from_in_expr(cls, visitor, ctx):
-        bin_expr = cls._from_mod(visitor, ctx)
+        # NOT IN produces unary expression
+        bin_or_unary = cls._from_mod(visitor, ctx)
         right = visitor.visit(ctx.subquery() or ctx.expression_list())
-        bin_expr.right = right if isinstance(right, list) else right
-        return bin_expr
+        if isinstance(bin_or_unary, UnaryExpr): 
+            bin_or_unary.expr.right = right
+        else:
+            bin_or_unary.right = right
+        return bin_or_unary
 
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
@@ -309,6 +313,9 @@ class AstVisitor(plsqlVisitor):
     def visitExpression_list(self, ctx):
         return [self.visit(expr) for expr in ctx.expression()]
         #return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
+
+    def visitInto_clause(self, ctx):
+        return [self.visit(expr) for expr in ctx.variable_name()]
 
     def visitJoin_on_part(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
