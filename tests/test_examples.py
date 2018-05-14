@@ -11,8 +11,7 @@ def load_examples(dir_path):
                 for fname in os.listdir(dir_path)
                 ]
 
-
-@pytest.mark.antlr_parsing
+@pytest.mark.examples
 @pytest.mark.parametrize('name, query', load_examples(examples))
 def test_examples(name, query):
     ast.parse(query)
