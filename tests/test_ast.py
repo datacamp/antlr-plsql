@@ -49,6 +49,16 @@ def test_select_fields_shaped():
     for field in select._get_field_names():
         assert not isinstance(getattr(select, field), ast.Unshaped)
 
+@pytest.mark.parametrize('sql_text', [
+    "SELECT a FROM co AS c INNER JOIN ec AS e ON c.code = e.code",
+    "SELECT a FROM co AS c INNER JOIN ec ON c.code = ec.code",
+    "SELECT a FROM co INNER JOIN ec AS e ON co.code = e.code",
+    "SELECT a FROM co INNER JOIN ec ON co.code = ec.code",
+])
+def test_inner_join(sql_text):
+    tree = ast.parse(sql_text)
+    assert tree.body[0].from_clause.join_type == "INNER"
+
 def test_ast_select_paren():
     node = ast.parse("(SELECT a FROM b)", 'subquery')
     assert isinstance(node, ast.SelectStmt)
