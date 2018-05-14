@@ -53,6 +53,7 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+.pytest_cache/
 
 # Translations
 *.mo
@@ -77,3 +78,6 @@ target/
 # Mac stuff -------------------------------------------------------------------
 .DS_Store
 tests/.DS_Store
+
+# Custom stuff ------------
+tests/dump_*.yml

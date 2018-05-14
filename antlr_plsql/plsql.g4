@@ -953,6 +953,7 @@ table_ref_pivot
 
 table_ref
     : table_ref join_clause                                     #JoinExpr
+    | table_ref_aux flashback_query_clause*                     #TableRefSimple
     | table_ref_aux flashback_query_clause* table_alias?        #TableRefAux
     ;
 
