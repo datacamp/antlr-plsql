@@ -18,7 +18,3 @@ clean:
 
 test: clean
 	pytest
-
-deploy: build
-	travis/setup-git.sh
-	travis/deploy-builds.sh
