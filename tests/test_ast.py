@@ -59,6 +59,36 @@ def test_inner_join(sql_text):
     tree = ast.parse(sql_text)
     assert tree.body[0].from_clause.join_type == "INNER"
 
+@pytest.mark.parametrize('sql_text', [
+    'SELECT a AS c FROM d RIGHT JOIN e ON f.g = h.j RIGHT JOIN i ON j.k = l.m',
+    'SELECT a AS c FROM d RIGHT JOIN e ON f.g = h.j RIGHT JOIN i ON j.k = l.m ORDER BY n',
+    'SELECT a.b AS c FROM d RIGHT JOIN e ON f.g = h.j RIGHT JOIN i ON j.k = l.m',
+    'SELECT a.b AS c FROM d RIGHT JOIN e ON f.g = h.j RIGHT JOIN i ON j.k = l.m ORDER BY n',
+])
+def test_double_inner_join(sql_text):
+    tree = ast.parse(sql_text)
+    frm = tree.body[0].from_clause
+    assert frm.join_type == "RIGHT"
+    assert frm.right.fields == ['i']
+    assert frm.left.join_type == "RIGHT"
+    assert frm.left.left.fields == ['d']
+    assert frm.left.right.fields == ['e']
+
+@pytest.mark.parametrize('sql_text', [
+    'SELECT a AS c FROM d as ad RIGHT JOIN e as ae ON f.g = h.j RIGHT JOIN i as ai ON j.k = l.m',
+    'SELECT a AS c FROM d as ad RIGHT JOIN e as ae ON f.g = h.j RIGHT JOIN i as ai ON j.k = l.m ORDER BY n',
+    'SELECT a.b AS c FROM d as ad RIGHT JOIN e as ae ON f.g = h.j RIGHT JOIN i as ai ON j.k = l.m',
+    'SELECT a.b AS c FROM d as ad RIGHT JOIN e as ae ON f.g = h.j RIGHT JOIN i as ai ON j.k = l.m ORDER BY n',
+])
+def test_double_inner_join_with_aliases(sql_text):
+    tree =ast.parse(sql_text)
+    frm = tree.body[0].from_clause
+    assert frm.join_type == "RIGHT"
+    assert frm.right.arr[0].fields == ['i'] # not good
+    assert frm.left.join_type == "RIGHT"
+    assert frm.left.left.arr[0].fields == ['d'] # not good
+    assert frm.left.right.arr[0].fields == ['e'] # not good
+
 def test_ast_select_paren():
     node = ast.parse("(SELECT a FROM b)", 'subquery')
     assert isinstance(node, ast.SelectStmt)
