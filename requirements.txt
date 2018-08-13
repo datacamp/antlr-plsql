@@ -1,4 +1,4 @@
-pytest
-antlr-ast
-antlr4-python3-runtime
-pyyaml
+pytest==3.7.1
+antlr-ast==0.1.0
+antlr4-python3-runtime==4.7
+pyyaml==3.13
