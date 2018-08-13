@@ -27,3 +27,5 @@ fields:
     for_update_clause: '`FOR UPDATE` clause'
     limit_clause: '`LIMIT` clause'
     over_clause: '`OVER` clause'
+    left: 'left operand'
+    right: 'right operand'
