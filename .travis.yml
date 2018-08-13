@@ -8,9 +8,9 @@ before_install: docker build -t antlr_plsql .
 
 script: docker run -v $(pwd):/usr/src/app antlr_plsql make build test
 
-after_script: ([ "${TRAVIS_BRANCH}" = "dev" ] || [ "${TRAVIS_BRANCH}" = "master" ])
-  && docker run -e GH_TOKEN -e TRAVIS_BRANCH -e TRAVIS_TAG -e TRAVIS_COMMIT antlr_plsql
-  make clean deploy
+# after_script: ([ "${TRAVIS_BRANCH}" = "dev" ] || [ "${TRAVIS_BRANCH}" = "master" ])
+#   && docker run -e GH_TOKEN -e TRAVIS_BRANCH -e TRAVIS_TAG -e TRAVIS_COMMIT antlr_plsql
+#   make clean deploy
 
 deploy:
   provider: pypi
