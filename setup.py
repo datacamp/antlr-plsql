@@ -11,12 +11,12 @@ with open('antlr_plsql/__init__.py', 'rb') as f:
         f.read().decode('utf-8')).group(1)))
 
 setup(
-	name = 'antlr-plsql',
-	version = version,
-	packages = ['antlr_plsql'],
-	install_requires = ['antlr-ast', 'antlr4-python3-runtime', 'pyyaml'],
-        description = 'A procedural sql parser, written in Antlr4',
-        author = 'Michael Chow',
-        author_email = 'michael@datacamp.com',
-        url = 'https://github.com/datacamp/antlr-plsql',
-        include_package_data = True)
+    name='antlr-plsql',
+    version=version,
+    packages=['antlr_plsql'],
+    install_requires=['antlr-ast', 'antlr4-python3-runtime', 'pyyaml'],
+    description='A procedural sql parser, written in Antlr4',
+    author='Michael Chow',
+    author_email='michael@datacamp.com',
+    url='https://github.com/datacamp/antlr-plsql',
+    include_package_data=True)
