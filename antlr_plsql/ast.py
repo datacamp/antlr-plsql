@@ -5,6 +5,8 @@ from antlr4.Token import CommonToken
 from antlr4.InputStream import InputStream
 from antlr4 import FileStream, CommonTokenStream
 
+from antlr_ast import CustomErrorListener, AstNode, Speaker
+
 from .plsqlLexer import plsqlLexer
 from .plsqlParser import plsqlParser
 from .plsqlVisitor import plsqlVisitor
@@ -12,6 +14,7 @@ from .plsqlVisitor import plsqlVisitor
 # AST -------------------------------------------------------------------------
 # TODO: Finish Unary+Binary Expr
 #       sql_script
+
 
 def parse(sql_text, start='sql_script', strict=False):
     input_stream = InputStream(sql_text)
@@ -28,6 +31,7 @@ def parse(sql_text, start='sql_script', strict=False):
 
     return ast.visit(getattr(parser, start)())
 
+
 import yaml
 def parse_from_yaml(fname):
     data = yaml.load(open(fname)) if isinstance(fname, str) else fname
@@ -36,7 +40,6 @@ def parse_from_yaml(fname):
         out[start] = [parse(cmd, start) for cmd in cmds]
     return out
 
-from antlr_ast import AstNode, Speaker
 
 class Unshaped(AstNode):
     _fields = ['arr']
@@ -44,6 +47,7 @@ class Unshaped(AstNode):
     def __init__(self, ctx, arr=tuple()):
         self.arr = arr
         self._ctx = ctx
+
 
 class Script(AstNode):
     _fields = ['body']
@@ -58,6 +62,7 @@ class Script(AstNode):
                 body.append(visitor.visit(child))
 
         return cls(ctx, body = body)
+
 
 class SelectStmt(AstNode):
     _fields = ['pref', 'target_list', 'into_clause', 'from_clause', 'where_clause',
@@ -79,6 +84,7 @@ class SelectStmt(AstNode):
 
         return query
 
+
 class Union(AstNode):
     _fields = ['left', 'op', 'right', 'order_by_clause']        
 
@@ -95,15 +101,19 @@ class Union(AstNode):
 
         return union
 
+
 class Identifier(AstNode):
     _fields = ['fields']
+
 
 # TODO
 class Star(AstNode):
     _fields = []
 
+
 class AliasExpr(AstNode):
     _fields = ['expr', 'alias']
+
 
 class BinaryExpr(AstNode):
     _fields = ['left', 'op', 'right']
@@ -130,16 +140,20 @@ class BinaryExpr(AstNode):
             bin_or_unary.right = right
         return bin_or_unary
 
+
 class UnaryExpr(AstNode):
     _fields = ['op', 'unary_expression->expr']
+
 
 class OrderByExpr(AstNode):
     _fields = ['order_by_elements->expr']
     #_rules = ['order_by_clause']
 
+
 class SortBy(AstNode):
     _fields = ['expression->expr', 'direction', 'nulls']
     #_rules = ['order_by_elements']
+
 
 class JoinExpr(AstNode):
     _fields = ['left', 'join_type', 'table_ref->right',
@@ -154,6 +168,7 @@ class JoinExpr(AstNode):
         join_expr.left = visitor.visit(ctx.table_ref())
 
         return join_expr
+
 
 from collections.abc import Sequence
 class Call(AstNode):
@@ -275,15 +290,15 @@ class AstVisitor(plsqlVisitor):
     def visitInExpr(self, ctx):
         return BinaryExpr._from_in_expr(self, ctx)
 
-    visitIsExpr =     visitBinaryExpr
+    visitIsExpr =       visitBinaryExpr
     visitBetweenExpr = visitModExpr
-    visitLikeExpr = visitModExpr
-    visitRelExpr =    visitBinaryExpr
-    visitMemberExpr = visitBinaryExpr
-    visitCursorExpr = visitUnaryExpr
-    visitNotExpr =    visitUnaryExpr
-    visitAndExpr =    visitBinaryExpr
-    visitOrExpr =     visitBinaryExpr
+    visitLikeExpr =    visitModExpr
+    visitRelExpr =     visitBinaryExpr
+    visitMemberExpr =  visitBinaryExpr
+    visitCursorExpr =  visitUnaryExpr
+    visitNotExpr =     visitUnaryExpr
+    visitAndExpr =     visitBinaryExpr
+    visitOrExpr =      visitBinaryExpr
 
 
     # simple dropping of tokens -----------------------------------------------
@@ -351,32 +366,6 @@ class AstVisitor(plsqlVisitor):
 #    if inspect.isclass(item) and issubclass(item, AstNode):
 #        item._bind_to_visitor(AstVisitor)
 
-
-from antlr4.error.ErrorListener import ErrorListener
-from antlr4.error.Errors import RecognitionException
-class AntlrException(Exception):
-    def __init__(self, msg, orig):
-        self.msg, self.orig = msg, orig
-
-class CustomErrorListener(ErrorListener):
-    def syntaxError(self, recognizer, badSymbol, line, col, msg, e):
-        if e is not None:
-            msg = "line {line}: {col} {msg}".format(line=line, col=col, msg=msg)
-            raise AntlrException(msg, e)
-        else:
-            raise AntlrException(msg, None)
-
-    def reportAmbiguity(self, recognizer, dfa, startIndex, stopIndex, exact, ambigAlts, configs):
-        return
-        #raise Exception("TODO")
-
-    def reportAttemptingFullContext(self, recognizer, dfa, startIndex, stopIndex, conflictingAlts, configs):
-        return
-        #raise Exception("TODO")
-
-    def reportContextSensitivity(self, recognizer, dfa, startIndex, stopIndex, prediction, configs):
-        return
-        #raise Exception("TODO")
 
 import pkg_resources
 speaker_cfg = yaml.load(pkg_resources.resource_stream('antlr_plsql', 'speaker.yml'))
