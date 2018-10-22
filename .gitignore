@@ -83,5 +83,5 @@ tests/.DS_Store
 tests/dump_*.yml
 antlr_plsql/js/*
 !antlr_plsql/js/index.js
-antlr_plsql/plsql*.py
-antlr_plsql/plsql*.tokens
+antlr_plsql/antlr_py/*
+!antlr_plsql/antlr_py/__init__.py
