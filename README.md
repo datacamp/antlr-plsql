@@ -9,14 +9,14 @@ ANTLR requires Java, so we suggest you use Docker when building grammars. The `M
 
 ### Build the grammar
 
-```
+```bash
 docker build -t antlr_plsql .
 docker run -it -v ${PWD}:/usr/src/app antlr_plsql make build
 ```
 
 ### Develop
 
-```
+```bash
 docker run -it -v ${PWD}:/usr/src/app antlr_plsql /bin/bash
 
 make buildpy         # Build the grammar

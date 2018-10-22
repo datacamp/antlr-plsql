@@ -1,15 +1,9 @@
-import sys
-from ast import AST
 from antlr4.tree import Tree
-from antlr4.Token import CommonToken
-from antlr4.InputStream import InputStream
-from antlr4 import FileStream, CommonTokenStream
 
-from antlr_ast import CustomErrorListener, AstNode, Speaker
+import antlr_ast
+from antlr_ast import AstNode, Speaker
 
-from .plsqlLexer import plsqlLexer
-from .plsqlParser import plsqlParser
-from .plsqlVisitor import plsqlVisitor
+from . import plsql_grammar
 
 # AST -------------------------------------------------------------------------
 # TODO: Finish Unary+Binary Expr
@@ -17,19 +11,7 @@ from .plsqlVisitor import plsqlVisitor
 
 
 def parse(sql_text, start='sql_script', strict=False):
-    input_stream = InputStream(sql_text)
-
-    lexer = plsqlLexer(input_stream)
-    token_stream = CommonTokenStream(lexer)
-    parser = plsqlParser(token_stream)
-    ast = AstVisitor()     
-
-    if strict:
-        error_listener = CustomErrorListener()
-        parser.removeErrorListeners()
-        parser.addErrorListener(error_listener)
-
-    return ast.visit(getattr(parser, start)())
+    return antlr_ast.parse(plsql_grammar, AstVisitor(), sql_text, start, strict)
 
 
 import yaml
@@ -93,7 +75,7 @@ class Union(AstNode):
         # hoists up ORDER BY clauses from the right SELECT statement
         # since the final ORDER BY applies to the entire statement (not just subquery)
         union = cls._from_fields(visitor, ctx)
-        if not isinstance(ctx.right, plsqlParser.SubqueryParenContext):
+        if not isinstance(ctx.right, plsql_grammar.Parser.SubqueryParenContext):
             order_by = getattr(union.right, 'order_by_clause', None)
             union.order_by_clause = order_by
             # remove from right SELECT
@@ -189,7 +171,7 @@ class Call(AstNode):
 
 # PARSE TREE VISITOR ----------------------------------------------------------
 
-class AstVisitor(plsqlVisitor):
+class AstVisitor(plsql_grammar.Visitor):
     def visitChildren(self, node, predicate=None):
         result = self.defaultResult()
         n = node.getChildCount()
