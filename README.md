@@ -28,6 +28,8 @@ from antlr_plsql import ast
 ast.parse("SELECT a from b")
 ```
 
+Alternatively, [use the AST viewer](https://github.com/datacamp/antlr-tsql#development).
+
 ## Travis deployment
 
 - Builds the Docker image
