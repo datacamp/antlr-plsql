@@ -11,7 +11,7 @@ buildpy:
 buildjs:
 	antlr4 -Dlanguage=JavaScript -o $(JS_DIR) antlr_plsql/plsql.g4 && mv $(JS_DIR)/antlr_plsql/* $(JS_DIR)
 
-build: buildpy buildjs
+build: buildpy
 
 clean:
 	find . \( -name \*.pyc -o -name \*.pyo -o -name __pycache__ \) -prune -exec rm -rf {} +
