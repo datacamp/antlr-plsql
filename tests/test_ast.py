@@ -118,8 +118,7 @@ def test_ast_select_paren():
     assert isinstance(node, ast.SelectStmt)
 
 
-@pytest.mark.parametrize("fname", ["v0.2.yml", "v0.3.yml", "v0.5.yml"])
-def test_ast_examples_parse(fname):
+def ast_examples_parse(fname):
     import yaml
 
     dirname = os.path.dirname(__file__)
@@ -130,5 +129,12 @@ def test_ast_examples_parse(fname):
         for cmd in cmds:
             res[start].append([cmd, repr(ast.parse(cmd, start, strict=True))])
     print(res)
-    with open(dirname + "/dump_" + fname, "w") as out_f:
+    filename = "dump_" + fname
+    with open(dirname + "/" + filename, "w") as out_f:
         yaml.dump(res, out_f)
+    return filename
+
+
+@pytest.mark.parametrize("fname", ["v0.2.yml", "v0.3.yml", "v0.5.yml"])
+def test_ast_examples_parse(fname):
+    return ast_examples_parse(fname)

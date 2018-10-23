@@ -1,6 +1,7 @@
 import pytest
 import os
 from antlr_plsql import ast
+from tests.test_ast import ast_examples_parse
 
 crnt_dir = os.path.dirname(__file__)
 examples = os.path.join(crnt_dir, "examples")
@@ -41,9 +42,9 @@ def load_dump(fname):
 @pytest.mark.parametrize(
     "start,cmd,res",
     [
-        *load_dump("dump_v0.2.yml"),
-        *load_dump("dump_v0.3.yml"),
-        *load_dump("dump_v0.5.yml"),
+        *load_dump(ast_examples_parse("v0.2.yml")),
+        *load_dump(ast_examples_parse("v0.3.yml")),
+        *load_dump(ast_examples_parse("v0.5.yml")),
     ],
 )
 def test_dump(start, cmd, res):
