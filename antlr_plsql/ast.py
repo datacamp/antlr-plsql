@@ -203,7 +203,12 @@ class AstVisitor(plsql_grammar.Visitor):
         return aggregate
 
     def visitTerminal(self, ctx):
-        return ctx.getText()
+        """converting case insensitive keywords and identifiers to lowercase"""
+        text = ctx.getText()
+        quotes = ['\'', '"']
+        if not (text[0] in quotes and text[-1] in quotes):
+            text = text.lower()
+        return text
 
     def visitSql_script(self, ctx):
         return Script._from_sql_script(self, ctx)
@@ -320,16 +325,6 @@ class AstVisitor(plsql_grammar.Visitor):
     def visitJoin_using_part(self, ctx):
         return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
 
-
-    # converting case insensitive keywords to lowercase -----------------------
-
-    def visitRegular_id(self, ctx):
-        # will be a single terminal node
-        return self.visitChildren(ctx).lower()
-
-    visitOver_clause_keyword = visitRegular_id
-    visitWithin_or_over_clause_keyword = visitRegular_id
-
     # removing parentheses ----------------------------------------------------
 
     @staticmethod
@@ -352,3 +347,6 @@ class AstVisitor(plsql_grammar.Visitor):
 import pkg_resources
 speaker_cfg = yaml.load(pkg_resources.resource_stream('antlr_plsql', 'speaker.yml'))
 speaker = Speaker(**speaker_cfg)
+
+if __name__ == "__main__":
+    parse('SELECT id FROM artists WHERE id > 100')

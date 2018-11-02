@@ -72,7 +72,7 @@ def test_select_fields_shaped():
 )
 def test_inner_join(sql_text):
     tree = ast.parse(sql_text)
-    assert tree.body[0].from_clause.join_type == "INNER"
+    assert tree.body[0].from_clause.join_type == "inner"
 
 
 @pytest.mark.parametrize(
@@ -87,9 +87,9 @@ def test_inner_join(sql_text):
 def test_double_inner_join(sql_text):
     tree = ast.parse(sql_text)
     frm = tree.body[0].from_clause
-    assert frm.join_type == "RIGHT"
+    assert frm.join_type == "right"
     assert frm.right.fields == ["i"]
-    assert frm.left.join_type == "RIGHT"
+    assert frm.left.join_type == "right"
     assert frm.left.left.fields == ["d"]
     assert frm.left.right.fields == ["e"]
 
@@ -106,9 +106,9 @@ def test_double_inner_join(sql_text):
 def test_double_inner_join_with_aliases(sql_text):
     tree = ast.parse(sql_text)
     frm = tree.body[0].from_clause
-    assert frm.join_type == "RIGHT"
+    assert frm.join_type == "right"
     assert frm.right.arr[0].fields == ["i"]  # not good
-    assert frm.left.join_type == "RIGHT"
+    assert frm.left.join_type == "right"
     assert frm.left.left.arr[0].fields == ["d"]  # not good
     assert frm.left.right.arr[0].fields == ["e"]  # not good
 
@@ -138,3 +138,35 @@ def ast_examples_parse(fname):
 @pytest.mark.parametrize("fname", ["v0.2.yml", "v0.3.yml", "v0.5.yml"])
 def test_ast_examples_parse(fname):
     return ast_examples_parse(fname)
+
+
+@pytest.mark.parametrize(
+    "stu",
+    [
+        "SELECT \"Preserve\" FROM B WHERE B.NAME = 'Casing'",
+        "SELECT \"Preserve\" FROM b WHERE b.NAME = 'Casing'",
+        "SELECT \"Preserve\" FROM b WHERE b.name = 'Casing'",
+        "select \"Preserve\" FROM B WHERE B.NAME = 'Casing'",
+        "select \"Preserve\" from B where B.NAME = 'Casing'",
+        "select \"Preserve\" from b WHERE b.name = 'Casing'",
+    ],
+)
+def case_insensitivity(stu):
+    start = 'sql_script'
+    lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
+    assert repr(ast.parse(lowercase, start, strict=True)) == repr(ast.parse(stu, start, strict=True))
+
+
+@pytest.mark.parametrize(
+    "stu",
+    [
+        "SELECT \"Preserve\" FROM B WHERE B.NAME = 'casing'",
+        "SELECT \"Preserve\" FROM b WHERE b.NAME = 'CASING'",
+        "SELECT \"preserve\" FROM b WHERE b.name = 'Casing'",
+        "select \"PRESERVE\" FROM B WHERE B.NAME = 'Casing'",
+    ],
+)
+def case_sensitivity(stu):
+    start = 'sql_script'
+    lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
+    assert repr(ast.parse(lowercase, start, strict=True)) != repr(ast.parse(stu, start, strict=True))
