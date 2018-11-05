@@ -1,18 +1,14 @@
 sudo: false
 language: python
-
 services:
-  - docker
-
+- docker
 before_install: docker build -t antlr_plsql .
-
 script: docker run -v $(pwd):/usr/src/app antlr_plsql make build test
-
 deploy:
   provider: pypi
-  user: machow
+  user: datacamp
   password:
-    secure: cqCj0PiURWEpLgjvWYtpuZ4O/1flY9S5NTF5XoCrLaw6cfjCJ4AU66InoV4eUiWNyF881Bui1dsbWJ8UftIUVGFGpUDzQMBPnQAdkjQcsSXt+iP81qBfoOATcc5TuMbnPJT1IHCpVGCzci30FQk1/XObxHHvIVpAU6Vz3MHlZ4IpNWSjOtHj43hW60cJnqwG7qp6V+OZ0mQbMgW+1uPxDRhylrAx/VNSEgkTzvUUL77hZS3Bta4Aazomf3kmSvrp1pgO6C+ww+UW+9lCrhOO8IVJ3MDZmo91RVmOor+qwRP2is1rmfdj9AJR5G72ehDXoR1hkKpCwbQlda7jmmy2AVbb7MxZ8S4Tt+A0dtFQVYre3D9jJ+FBGjPCkXzqj9aK4zyHEgZWrGktOztL/8/3ZVkRj6DUh9turDEVno85VsBNgIjiF9vvJw2NJDmc8m3GBP+LM1oy9XUA11s9r2/D1ZkxQZKKNEZSqXw0noBx30CKZdDCQwB7DPxZzKFxMhhd6ofrJqKlVe0ydh0FRcExuyUBAc6Jhua/mZZqiI5gUYe+Nws+S+cCp9sR8hoyzZ7MOq+I8sjUiywNuM1u1XtP7nTE14lPR8bZyrDvCPrYXFb62ZHcPrR3QpVeqOkL9NIV+kPLvdyFXwQ+76D+XNFJLwXVlf8Ab2Uph8Ch5mADp2A=
+    secure: Ft8Dou7GD5s72WosHbqVm0a1S5yKY9magNZmITJEFSdp265NX7kd4bF88magklA57n/9KeqkQmctu6Vb9zKP2wH252TzDrDjAgYA1O6ioBtEiHQl6L3EzElcU/pCxjPjKedK+O1X9UG2dA7ojYSGcRUSrYZbZYLcMnPliVNl5yKySQ+MwDggMRey8ijtYkWUuTLZO8rPbeSLT7qDOeX3so+ujv29cNJPYjuybbG3S80dOEY5bdkAsp6Uao13ElqlV/LvJWebd9MkC+bISvo3HDW/wf6AWjz6goaxNWlGqyvSpxAvCMwJgyeLGjG09CaUq82s4xfm1L6JEt+zBBbZtZ0eAq5J6tHaljPgyIOywQKOb/FAX9CjdngjvE7tuRHJFKf0mY0vZKe41KbGinNs5KD8tN0lFA1L7rlSr4Kzsg3kH1ZdQMHKV/c5GmVzMgle4W3qMfgIHjg/+pvx8unTRXmHFTLoZMtt5YFyl6BcZZ6Iyc42JT7tfL3Nz+kC/EG+tojDq8Ki/bdoDgKl1QXvwLiwcwDR3RdRUesGlka/EEtsqdp4f3XNs6BUCKlSuzrfsl5XGrgBVNFhK+/yXUvkWkX7Qz0/jkRCG1T0lBCWTSN0IkR1PhcbBqeg3OkH8JG5fsZQQJaIxwOgYoCESNRDKNNtgTo/lhCNgRbVzV6lmMs=
   on:
     tags: true
     distributions: sdist bdist_wheel
