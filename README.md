@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/datacamp/antlr-plsql.svg?branch=master)](https://travis-ci.org/datacamp/antlr-plsql)
 [![PyPI version](https://badge.fury.io/py/antlr-plsql.svg)](https://badge.fury.io/py/antlr-plsql)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fdatacamp%2Fantlr-plsql.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fdatacamp%2Fantlr-plsql?ref=badge_shield)
 
 ## Development
 
@@ -36,3 +37,7 @@ Alternatively, [use the AST viewer](https://github.com/datacamp/antlr-tsql#devel
 - Runs the Docker image to build the grammar, run the unit tests
 - Commits the generated grammar files to the `builds` (for `master`) and `builds-dev` (for `dev`) branches.
 - Builds the grammar and deploys the resulting python and js files to PyPi when a new release is made.
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fdatacamp%2Fantlr-plsql.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fdatacamp%2Fantlr-plsql?ref=badge_large)
