@@ -1,2 +1,4 @@
+include LICENSE
+include requirements.txt
 include antlr_plsql/antlr_py/*
 include antlr_plsql/speaker.yml
