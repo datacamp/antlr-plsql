@@ -3,7 +3,7 @@ from antlr4.tree import Tree
 import antlr_ast
 from antlr_ast import AstNode, Speaker
 
-from . import plsql_grammar
+from . import grammar
 
 # AST -------------------------------------------------------------------------
 # TODO: Finish Unary+Binary Expr
@@ -11,7 +11,7 @@ from . import plsql_grammar
 
 
 def parse(sql_text, start="sql_script", strict=False):
-    tree = antlr_ast.parse(plsql_grammar, sql_text, start, strict)
+    tree = antlr_ast.parse(grammar, sql_text, start, strict)
     return AstVisitor().visit(tree)
 
 
@@ -105,7 +105,7 @@ class Union(AstNode):
         # hoists up ORDER BY clauses from the right SELECT statement
         # since the final ORDER BY applies to the entire statement (not just subquery)
         union = cls._from_fields(visitor, ctx)
-        if not isinstance(ctx.right, plsql_grammar.Parser.SubqueryParenContext):
+        if not isinstance(ctx.right, grammar.Parser.SubqueryParenContext):
             order_by = getattr(union.right, "order_by_clause", None)
             union.order_by_clause = order_by
             # remove from right SELECT
@@ -322,7 +322,7 @@ class CaseWhen(AstNode):
 # PARSE TREE VISITOR ----------------------------------------------------------
 
 
-class AstVisitor(plsql_grammar.Visitor):
+class AstVisitor(grammar.Visitor):
     def visitChildren(self, node, predicate=None):
         result = self.defaultResult()
         n = node.getChildCount()
