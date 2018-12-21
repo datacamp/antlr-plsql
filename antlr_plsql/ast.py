@@ -36,6 +36,7 @@ class Unshaped(AstNode):
 
 class Script(AstNode):
     _fields = ["body"]
+    _rules = [("sql_script", "_from_sql_script")]
     _priority = 0
 
     @classmethod
@@ -63,6 +64,11 @@ class SelectStmt(AstNode):
         "for_update_clause",
         "order_by_clause",
         "limit_clause",
+        "with_clause",
+    ]
+    _rules = [
+        ("query_block", "_from_query_block"),
+        ("select_statement", "_from_select"),
     ]
 
     _priority = 1
@@ -80,9 +86,19 @@ class SelectStmt(AstNode):
 
         return query
 
+    @classmethod
+    def _from_select(cls, visitor, ctx):
+        select = visitor.visit(ctx.subquery())
+        with_ctx = ctx.subquery_factoring_clause()
+        if with_ctx is not None:
+            with_clause = visitor.visit(with_ctx)
+            select.with_clause = with_clause
+        return select
+
 
 class Union(AstNode):
     _fields = ["left", "op", "right", "order_by_clause"]
+    _rules = [("SubqueryCompound", "_from_subquery_compound")]
 
     @classmethod
     def _from_subquery_compound(cls, visitor, ctx):
@@ -101,28 +117,60 @@ class Union(AstNode):
 
 class Identifier(AstNode):
     _fields = ["fields"]
+    _rules = ["dot_id"]
 
 
 # TODO
 class Star(AstNode):
     _fields = []
+    _rules = ["star"]
+
+
+class TableAliasExpr(AstNode):
+    # TODO order_by_clause
+    _fields = ["query_name->alias", "column_name_list->alias_columns", "subquery"]
+    _rules = ["factoring_element"]
 
 
 class AliasExpr(AstNode):
     _fields = ["expr", "alias"]
+    _rules = [("alias_expr", "_from_alias"), ("TableRefAux", "_from_table_ref")]
+
+    @classmethod
+    def _from_alias(cls, visitor, ctx):
+        if ctx.alias:
+            return cls._from_fields(visitor, ctx)
+        else:
+            return visitor.visitChildren(ctx)
+
+    @classmethod
+    def _from_table_ref(cls, visitor, ctx):
+        # TODO flashback_query_clause + table_ref_aux
+        # TODO table_ref_aux.pivot_clause
+        query = visitor.visit(ctx.table_ref_aux().dml_table_expression_clause())
+        alias_ctx = ctx.table_alias()
+        if alias_ctx is not None:
+            alias = cls(ctx)
+            alias.alias = visitor.visit(alias_ctx)
+            alias.expr = query
+            return alias
+        else:
+            return query
 
 
 class BinaryExpr(AstNode):
     _fields = ["left", "op", "right"]
     _rules = [
+        "BinaryExpr",
         "IsExpr",
-        "InExpr",
-        "BetweenExpr",
-        "LikeExpr",
         "RelExpr",
         "MemberExpr",
         "AndExpr",
         "OrExpr",
+        ("ModExpr", "_from_mod"),
+        ("BetweenExpr", "_from_mod"),
+        ("LikeExpr", "_from_mod"),
+        ("InExpr", "_from_in_expr"),
     ]
 
     @classmethod
@@ -148,16 +196,17 @@ class BinaryExpr(AstNode):
 
 class UnaryExpr(AstNode):
     _fields = ["op", "unary_expression->expr"]
+    _rules = ["UnaryExpr", "CursorExpr", "NotExpr"]
 
 
 class OrderByExpr(AstNode):
     _fields = ["order_by_elements->expr"]
-    # _rules = ['order_by_clause']
+    _rules = ["order_by_clause"]
 
 
 class SortBy(AstNode):
     _fields = ["expression->expr", "direction", "nulls"]
-    # _rules = ['order_by_elements']
+    _rules = ["order_by_elements"]
 
 
 class JoinExpr(AstNode):
@@ -170,6 +219,7 @@ class JoinExpr(AstNode):
         "join_using_part->using",
         "query_partition_clause",
     ]
+    _rules = [("JoinExpr", "_from_table_ref")]
 
     @classmethod
     def _from_table_ref(cls, visitor, ctx):
@@ -186,11 +236,18 @@ from collections.abc import Sequence
 class Call(AstNode):
     _fields = [
         "name",
+        "dot_id->name",
         "pref",
         "args",
+        "function_argument->args",
         "function_argument_analytic->args",
         "concatenation->args",
         "over_clause",
+    ]
+    _rules = [
+        ("aggregate_windowed_function", "_from_aggregate_call"),
+        ("FuncCall", "_from_func"),
+        ("TodoCall", "_from_todo"),
     ]
 
     @staticmethod
@@ -207,6 +264,59 @@ class Call(AstNode):
         elif not isinstance(obj.args, Sequence):
             obj.args = [obj.args]
         return obj
+
+    @classmethod
+    def _from_func(cls, visitor, ctx):
+        obj = cls._from_fields(visitor, ctx)
+        if hasattr(obj.args, "arr"):
+            # args may be Unshaped by non-AstNode argument
+            # unpack the array inside:
+            obj.args = obj.args.arr
+        return obj
+
+    @classmethod
+    def _from_todo(cls, visitor, ctx):
+        obj = cls._from_fields(visitor, ctx)
+        regular_id_ctx = ctx.regular_id()
+        if regular_id_ctx is not None:
+            obj.component = visitor.visit(regular_id_ctx)
+        concatenation_ctx = ctx.concatenation()
+        if concatenation_ctx is not None:
+            obj.expr = visitor.visit(concatenation_ctx)
+        within_or_over_part_ctx = ctx.within_or_over_part()
+        if within_or_over_part_ctx is not None:
+            for el in within_or_over_part_ctx:
+                over_clause_ctx = el.over_clause()
+                if over_clause_ctx is not None:
+                    obj.over_clause = visitor.visit(over_clause_ctx)
+        return obj
+
+
+class OverClause(AstNode):
+    _fields = [
+        "query_partition_clause->partition",
+        "order_by_clause",
+        "windowing_clause",
+    ]
+    _rules = ["over_clause"]
+
+
+class Case(AstNode):
+    _fields = [
+        "simple_case_when_part->switches",
+        "searched_case_when_part->switches",
+        "case_else_part->else_expr",
+    ]
+    _rules = ["simple_case_statement", "searched_case_statement"]  # case_statement
+    # 'label' in grammar not correct?
+
+
+class CaseWhen(AstNode):
+    _fields = ["whenExpr->when", "thenExpr->then"]
+    _rules = ["simple_case_when_part", "searched_case_when_part"]
+
+
+# class FunctionArgument
 
 
 # PARSE TREE VISITOR ----------------------------------------------------------
@@ -259,56 +369,15 @@ class AstVisitor(plsql_grammar.Visitor):
             text = text.lower()
         return text
 
-    def visitSql_script(self, ctx):
-        return Script._from_sql_script(self, ctx)
-
     def visitSubqueryParen(self, ctx):
         return self.visit(ctx.subquery())
-
-    def visitSubqueryCompound(self, ctx):
-        return Union._from_subquery_compound(self, ctx)
-
-    def visitQuery_block(self, ctx):
-        return SelectStmt._from_query_block(self, ctx)
-
-    def visitDot_id(self, ctx):
-        return Identifier._from_fields(self, ctx)
-
-    def visitStar(self, ctx):
-        return Star._from_fields(self, ctx)
 
     def visitStarTable(self, ctx):
         identifier = self.visit(ctx.dot_id())
         identifier.fields += [self.visit(ctx.star())]
         return identifier
 
-    def visitAlias_expr(self, ctx):
-        if ctx.alias:
-            return AliasExpr._from_fields(self, ctx)
-        else:
-            return self.visitChildren(ctx)
-
-    def visitOrder_by_clause(self, ctx):
-        return OrderByExpr._from_fields(self, ctx)
-
-    def visitOrder_by_elements(self, ctx):
-        return SortBy._from_fields(self, ctx)
-
-    def visitBinaryExpr(self, ctx):
-        return BinaryExpr._from_fields(self, ctx)
-
-    def visitUnaryExpr(self, ctx):
-        return UnaryExpr._from_fields(self, ctx)
-
-    def visitModExpr(self, ctx):
-        return BinaryExpr._from_mod(self, ctx)
-
-    def visitJoinExpr(self, ctx):
-        return JoinExpr._from_table_ref(self, ctx)
-
     # function calls -------
-    def visitAggregate_windowed_function(self, ctx):
-        return Call._from_aggregate_call(self, ctx)
 
     def visitFunction_argument_analytic(self, ctx):
         if not (ctx.respect_or_ignore_nulls() or ctx.keep_clause()):
@@ -319,33 +388,11 @@ class AstVisitor(plsql_grammar.Visitor):
     # def visitIs_part(self, ctx):
     #    return ctx
 
-    # many outer label visitors ----------------------------------------------
-
-    # expression conds
-    # TODO replace with for loop over AST classes
-    def visitInExpr(self, ctx):
-        return BinaryExpr._from_in_expr(self, ctx)
-
-    visitIsExpr = visitBinaryExpr
-    visitBetweenExpr = visitModExpr
-    visitLikeExpr = visitModExpr
-    visitRelExpr = visitBinaryExpr
-    visitMemberExpr = visitBinaryExpr
-    visitCursorExpr = visitUnaryExpr
-    visitNotExpr = visitUnaryExpr
-    visitAndExpr = visitBinaryExpr
-    visitOrExpr = visitBinaryExpr
-
     # simple dropping of tokens -----------------------------------------------
     # Note can't filter out TerminalNodeImpl from some currently as in something like
     # "SELECT a FROM b WHERE 1", the 1 will be a terminal node in where_clause
     def visitWhere_clause(self, ctx):
         return self.visitChildren(ctx, predicate=lambda n: n is not ctx.WHERE())
-
-    def visitFrom_clause(self, ctx):
-        return self.visitChildren(
-            ctx, predicate=lambda n: not isinstance(n, Tree.TerminalNode)
-        )
 
     def visitLimit_clause(self, ctx):
         return self.visitChildren(ctx, predicate=lambda n: n is not ctx.LIMIT())
@@ -353,18 +400,10 @@ class AstVisitor(plsql_grammar.Visitor):
     def visitColumn_alias(self, ctx):
         return self.visitChildren(ctx, predicate=lambda n: n is not ctx.AS())
 
-    def visitTable_ref_list(self, ctx):
-        return self.visitChildren(
-            ctx, predicate=lambda n: not isinstance(n, Tree.TerminalNodeImpl)
-        )
-
-    def visitGroup_by_clause(self, ctx):
-        return self.visitChildren(
-            ctx, predicate=lambda n: not isinstance(n, Tree.TerminalNodeImpl)
-        )
-
     def visitHaving_clause(self, ctx):
         return self.visitChildren(ctx, predicate=lambda n: n is not ctx.HAVING())
+
+    # TODO similar pattern, reuse?
 
     def visitExpression_list(self, ctx):
         return [self.visit(expr) for expr in ctx.expression()]
@@ -373,34 +412,43 @@ class AstVisitor(plsql_grammar.Visitor):
     def visitInto_clause(self, ctx):
         return [self.visit(expr) for expr in ctx.variable_name()]
 
-    def visitJoin_on_part(self, ctx):
+    _remove_terminal = [
+        "from_clause",
+        "table_ref_list",
+        "group_by_clause",
+        "join_on_part",
+        "join_using_part",
+        "atom",
+        "ParenExpr",
+        "ParenBinaryExpr",
+        "case_else_part",
+        "table_alias",
+        "subquery_factoring_clause",
+        "dml_table_expression_clause",
+        "function_argument",
+        "argument_list",
+    ]
+
+
+# TODO: convert more visitors now visitor generation is fixed
+# for some reason can't get this to work as in tsql
+# Override visit methods in AstVisitor for all nodes (in _rules) that convert to the AstNode classes
+import inspect
+
+for item in list(globals().values()):
+    if inspect.isclass(item) and issubclass(item, AstNode):
+        if getattr(item, "_rules", None) is not None:
+            item._bind_to_visitor(AstVisitor)
+
+# Override node visiting methods to add terminal child skipping in AstVisitor
+for rule in AstVisitor._remove_terminal:
+    # f = partial(AstVisitor.visitChildren, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
+    def skip_terminal_child_nodes(self, ctx):
         return self.visitChildren(
             ctx, predicate=lambda n: not isinstance(n, Tree.TerminalNode)
         )
 
-    def visitJoin_using_part(self, ctx):
-        return self.visitChildren(
-            ctx, predicate=lambda n: not isinstance(n, Tree.TerminalNode)
-        )
-
-    # removing parentheses ----------------------------------------------------
-
-    @staticmethod
-    def _exclude_parens(node):
-        return not isinstance(node, Tree.TerminalNodeImpl)
-
-    def visitAtom(self, ctx):
-        return self.visitChildren(ctx, predicate=self._exclude_parens)
-
-    visitParenExpr = visitAtom
-    visitParenBinaryExpr = visitAtom
-
-
-# TODO: for some reason can't get this to work as in tsql
-# import inspect
-# for item in list(globals().values()):
-#     if inspect.isclass(item) and issubclass(item, AstNode):
-#         item._bind_to_visitor(AstVisitor)
+    setattr(AstVisitor, "visit" + rule[0].upper() + rule[1:], skip_terminal_child_nodes)
 
 
 import pkg_resources
@@ -409,5 +457,7 @@ speaker_cfg = yaml.load(pkg_resources.resource_stream("antlr_plsql", "speaker.ym
 speaker = Speaker(**speaker_cfg)
 
 if __name__ == "__main__":
-    parse("SELECT id FROM artists WHERE id > 100")
-
+    query = """
+SELECT id FROM artists WHERE id > 100
+    """
+    parse(query)
