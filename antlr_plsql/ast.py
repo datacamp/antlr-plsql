@@ -1,7 +1,6 @@
 from antlr4.tree import Tree
 
-import antlr_ast
-from antlr_ast import AstNode, Speaker
+from antlr_ast import parse as parse_ast, bind_to_visitor, AstNode, Speaker
 
 from . import grammar
 
@@ -11,7 +10,7 @@ from . import grammar
 
 
 def parse(sql_text, start="sql_script", strict=False):
-    tree = antlr_ast.parse(grammar, sql_text, start, strict)
+    tree = parse_ast(grammar, sql_text, start, strict)
     return AstVisitor().visit(tree)
 
 
@@ -448,7 +447,7 @@ for rule in AstVisitor._remove_terminal:
             ctx, predicate=lambda n: not isinstance(n, Tree.TerminalNode)
         )
 
-    setattr(AstVisitor, "visit" + rule[0].upper() + rule[1:], skip_terminal_child_nodes)
+    bind_to_visitor(AstVisitor, rule, skip_terminal_child_nodes)
 
 
 import pkg_resources
