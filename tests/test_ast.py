@@ -49,11 +49,11 @@ def test_ast_dumps_unary():
 def test_select_fields_shaped():
     select = ast.parse(
         """
-    SELECT a,b 
-    FROM x,y 
+    SELECT a,b
+    FROM x,y
     GROUP BY a, b
     ORDER BY a, b
-    
+
     """,
         "subquery",
     )
@@ -107,10 +107,10 @@ def test_double_inner_join_with_aliases(sql_text):
     tree = ast.parse(sql_text)
     frm = tree.body[0].from_clause
     assert frm.join_type == "right"
-    assert frm.right.arr[0].fields == ["i"]  # not good
+    assert frm.right.expr.fields == ["i"]
     assert frm.left.join_type == "right"
-    assert frm.left.left.arr[0].fields == ["d"]  # not good
-    assert frm.left.right.arr[0].fields == ["e"]  # not good
+    assert frm.left.left.expr.fields == ["d"]
+    assert frm.left.right.expr.fields == ["e"]
 
 
 def test_ast_select_paren():
