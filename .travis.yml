@@ -1,5 +1,7 @@
 sudo: false
 language: python
+python:
+- '3.5'
 services:
 - docker
 before_install: docker build -t antlr_plsql .
