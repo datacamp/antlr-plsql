@@ -1,6 +1,12 @@
 from antlr4.tree import Tree
 
-from antlr_ast import parse as parse_ast, bind_to_visitor, AstNode, Speaker
+from antlr_ast.ast import (
+    parse as parse_ast,
+    bind_to_visitor,
+    AstNode,
+    Speaker,
+    AntlrException as ParseError,
+)
 
 from . import grammar
 

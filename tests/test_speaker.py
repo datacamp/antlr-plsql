@@ -1,12 +1,12 @@
 import pytest
 import os
 from antlr_plsql import ast
-from antlr_ast import Speaker
+from antlr_ast.ast import Speaker
 import yaml
 
 @pytest.fixture
 def speaker():
-    return Speaker(nodes = {'SelectStmt': 'SELECT statement', 
+    return Speaker(nodes = {'SelectStmt': 'SELECT statement',
                             'Call': 'function call `{node.name}`'},
                    fields = {'target_list': 'target list'})
 
@@ -48,4 +48,3 @@ def test_print_speaker(code, start):
     # fields
     for field_name in tree._get_field_names():
         print(speaker.describe(tree, field = field_name, fmt = "The {field_name} of the {node_name}"))
-
