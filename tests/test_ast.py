@@ -1,12 +1,15 @@
 import pytest
 import os
-from antlr_ast import AntlrException
+from antlr_ast.ast import AntlrException
 from antlr_plsql import ast
 
 
 def test_ast_parse_strict():
     with pytest.raises(AntlrException):
         ast.parse("SELECT x FROM ____", strict=True)  # ____ is ungrammatical
+    # Test export of exception class
+    with pytest.raises(ast.ParseError):
+        ast.parse("SELECT x FROM ____!", strict=True)  # ____! is ungrammatical
 
 
 def test_unparsed_to_text():
