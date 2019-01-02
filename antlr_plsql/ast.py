@@ -26,7 +26,7 @@ def parse_from_yaml(fname):
 
 
 class Unshaped(AstNode):
-    _fields = ["arr"]
+    _fields_spec = ["arr"]
 
     def __init__(self, ctx, arr=tuple()):
         self.arr = arr
@@ -34,7 +34,7 @@ class Unshaped(AstNode):
 
 
 class Script(AstNode):
-    _fields = ["body"]
+    _fields_spec = ["body"]
     _rules = [("sql_script", "_from_sql_script")]
     _priority = 0
 
@@ -50,7 +50,7 @@ class Script(AstNode):
 
 
 class SelectStmt(AstNode):
-    _fields = [
+    _fields_spec = [
         "pref",
         "target_list",
         "into_clause",
@@ -96,7 +96,7 @@ class SelectStmt(AstNode):
 
 
 class Union(AstNode):
-    _fields = ["left", "op", "right", "order_by_clause"]
+    _fields_spec = ["left", "op", "right", "order_by_clause"]
     _rules = [("SubqueryCompound", "_from_subquery_compound")]
 
     @classmethod
@@ -115,24 +115,24 @@ class Union(AstNode):
 
 
 class Identifier(AstNode):
-    _fields = ["fields"]
+    _fields_spec = ["fields"]
     _rules = ["dot_id"]
 
 
 # TODO
 class Star(AstNode):
-    _fields = []
+    _fields_spec = []
     _rules = ["star"]
 
 
 class TableAliasExpr(AstNode):
     # TODO order_by_clause
-    _fields = ["query_name->alias", "column_name_list->alias_columns", "subquery"]
+    _fields_spec = ["query_name->alias", "column_name_list->alias_columns", "subquery"]
     _rules = ["factoring_element"]
 
 
 class AliasExpr(AstNode):
-    _fields = ["expr", "alias"]
+    _fields_spec = ["expr", "alias"]
     _rules = [("alias_expr", "_from_alias"), ("TableRefAux", "_from_table_ref")]
 
     @classmethod
@@ -158,7 +158,7 @@ class AliasExpr(AstNode):
 
 
 class BinaryExpr(AstNode):
-    _fields = ["left", "op", "right"]
+    _fields_spec = ["left", "op", "right"]
     _rules = [
         "BinaryExpr",
         "IsExpr",
@@ -194,22 +194,22 @@ class BinaryExpr(AstNode):
 
 
 class UnaryExpr(AstNode):
-    _fields = ["op", "unary_expression->expr"]
+    _fields_spec = ["op", "unary_expression->expr"]
     _rules = ["UnaryExpr", "CursorExpr", "NotExpr"]
 
 
 class OrderByExpr(AstNode):
-    _fields = ["order_by_elements->expr"]
+    _fields_spec = ["order_by_elements->expr"]
     _rules = ["order_by_clause"]
 
 
 class SortBy(AstNode):
-    _fields = ["expression->expr", "direction", "nulls"]
+    _fields_spec = ["expression->expr", "direction", "nulls"]
     _rules = ["order_by_elements"]
 
 
 class JoinExpr(AstNode):
-    _fields = [
+    _fields_spec = [
         "left",
         "join_type",
         "table_ref->right",
@@ -233,7 +233,7 @@ from collections.abc import Sequence
 
 
 class Call(AstNode):
-    _fields = [
+    _fields_spec = [
         "name",
         "dot_id->name",
         "pref",
@@ -292,7 +292,7 @@ class Call(AstNode):
 
 
 class OverClause(AstNode):
-    _fields = [
+    _fields_spec = [
         "query_partition_clause->partition",
         "order_by_clause",
         "windowing_clause",
@@ -301,7 +301,7 @@ class OverClause(AstNode):
 
 
 class Case(AstNode):
-    _fields = [
+    _fields_spec = [
         "simple_case_when_part->switches",
         "searched_case_when_part->switches",
         "case_else_part->else_expr",
@@ -311,7 +311,7 @@ class Case(AstNode):
 
 
 class CaseWhen(AstNode):
-    _fields = ["whenExpr->when", "thenExpr->then"]
+    _fields_spec = ["whenExpr->when", "thenExpr->then"]
     _rules = ["simple_case_when_part", "searched_case_when_part"]
 
 
