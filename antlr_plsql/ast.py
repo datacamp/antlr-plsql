@@ -399,9 +399,12 @@ class Reference(AstNode):
     @classmethod
     def _from_references(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
+
+        # TODO extract as visitor ~ expression_list
         obj.columns = visitor.visitChildren(
             ctx.paren_column_list().column_list(), predicate=is_terminal, simplify=False
         )
+
         return obj
 
 
@@ -490,10 +493,13 @@ class Constraint(AstNode):
             obj.type = "primary_key"  # TODO: format?
         elif foreign_key_ctx and foreign_key_ctx.FOREIGN() and foreign_key_ctx.KEY():
             obj.type = "foreign_key"
+
+            # TODO extract as visitor ~ expression_list
             columns_ctx = foreign_key_ctx.paren_column_list().column_list()
             obj.columns = visitor.visitChildren(
                 columns_ctx, predicate=is_terminal, simplify=False
             )
+
             reference_ctx = foreign_key_ctx.references_clause()
             obj.reference = visitor.visit(reference_ctx)
         elif ctx.CHECK():
@@ -542,6 +548,7 @@ class UpdateStmt(AstNode):
     def _from_update(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
 
+        # TODO extract as visitor ~ expression_list
         update_set_ctx = ctx.update_set_clause()
         if update_set_ctx.column_based_update_set_clause():
             obj.updates = visitor.visitChildren(
@@ -701,7 +708,7 @@ class AstVisitor(grammar.Visitor):
     def visitHaving_clause(self, ctx):
         return self.visitChildren(ctx, predicate=lambda n: n is not ctx.HAVING())
 
-    # TODO similar pattern, reuse?
+    # TODO similar pattern, reuse? visit_field (~ _from_fields)
 
     def visitExpression_list(self, ctx):
         return [self.visit(expr) for expr in ctx.expression()]
