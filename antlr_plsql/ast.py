@@ -520,9 +520,7 @@ class InsertStmt(AstNode):
         values_ctx = ctx.values_clause()
         if values_ctx:
             values_list_ctx = values_ctx.expression_list()
-            obj.values = visitor.visitChildren(
-                values_list_ctx, predicate=is_terminal, simplify=False
-            )
+            obj = visitor.visit(values_list_ctx)
 
         query_ctx = ctx.select_statement()
         if query_ctx:
@@ -732,7 +730,6 @@ class AstVisitor(grammar.Visitor):
         "relational_table",
         # "relational_properties",
         "column_name_list",
-        "expression_list",
         "update_set_clause",
     ]
 
