@@ -1,3 +1,5 @@
+import copy
+
 from antlr4.tree import Tree
 
 from antlr_ast.ast import (
@@ -13,6 +15,8 @@ from . import grammar
 # AST -------------------------------------------------------------------------
 # TODO: Finish Unary+Binary Expr
 #       sql_script
+
+DEBUG = False
 
 
 def parse(sql_text, start="sql_script", strict=False):
@@ -477,7 +481,7 @@ class InsertStmt(AstNode):
             values_list_ctx = values_ctx.expression_list()
             obj.values = visitor.visitChildren(
                 values_list_ctx, predicate=is_terminal, simplify=False
-            ).arr
+            )
 
         query_ctx = ctx.select_statement()
         if query_ctx:
@@ -521,11 +525,34 @@ class DeleteStmt(AstNode):
 # class FunctionArgument
 
 
+class Terminal(AstNode):
+    _fields_spec = ["value"]
+    DEBUG_INSTANCES = []
+
+    def __new__(cls, *args, **kwargs):
+        instance = super().__new__(cls, *args, **kwargs)
+        if DEBUG:
+            cls.DEBUG_INSTANCES.append(instance)
+            return instance
+        else:
+            return kwargs.get("value", "")
+
+    def __str__(self):
+        return self.value
+
+
 # PARSE TREE VISITOR ----------------------------------------------------------
 
 
 class AstVisitor(grammar.Visitor):
     def visitChildren(self, node, predicate=None, simplify=True):
+        """This is the default visiting behaviour
+
+        :param node: current node
+        :param predicate: skip a child if this evaluates to false
+        :param simplify: whether the result of the visited children should be combined if possible
+        :return:
+        """
         result = self.defaultResult()
         n = node.getChildCount()
         for i in range(n):
@@ -543,15 +570,30 @@ class AstVisitor(grammar.Visitor):
 
     @staticmethod
     def result_to_ast(node, result, simplify=True):
-        if simplify and len(result) == 1:
-            return result[0]
-        elif len(result) == 0:
+        if len(result) == 0:
             return None
-        elif simplify and all(isinstance(res, str) for res in result):
-            return " ".join(result)
+        elif simplify and len(result) == 1:
+            return result[0]
+        elif all(isinstance(res, Terminal) for res in result) or all(
+            isinstance(res, str) for res in result
+        ):
+            if simplify:
+                # TODO: log when this is used?
+                # TODO: better combining of ctx?
+                try:
+                    ctx = copy.copy(result[0]._ctx)
+                    ctx.symbol = copy.copy(ctx.symbol)
+                    ctx.symbol.stop = result[-1]._ctx.symbol.stop
+                except AttributeError:
+                    ctx = node
+                return Terminal(
+                    ctx, value=" ".join(map(lambda t: getattr(t, "value", t), result))
+                )
+            else:
+                return result
         elif all(
             isinstance(res, AstNode) and not isinstance(res, Unshaped) for res in result
-        ):
+        ) or (not simplify and all(res is not None for res in result)):
             return result
         else:
             if all(res is None for res in result):
@@ -569,12 +611,12 @@ class AstVisitor(grammar.Visitor):
         return aggregate
 
     def visitTerminal(self, ctx):
-        """converting case insensitive keywords and identifiers to lowercase"""
+        """Converts case insensitive keywords and identifiers to lowercase"""
         text = ctx.getText()
         quotes = ["'", '"']
         if not (text[0] in quotes and text[-1] in quotes):
             text = text.lower()
-        return text
+        return Terminal(ctx, value=text)
 
     def visitErrorNode(self, node):
         return None
