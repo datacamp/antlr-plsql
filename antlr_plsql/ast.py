@@ -313,7 +313,7 @@ class Call(AstNode):
     @classmethod
     def _from_str_func(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
-        obj.args = visitor.visitChildren(ctx, predicate=is_terminal, simplify=False)  # TODO .arr
+        obj.args = visitor.visitChildren(ctx, predicate=is_terminal, simplify=False)
         return obj
 
 
@@ -621,12 +621,11 @@ class AstVisitor(grammar.Visitor):
             return None
         elif simplify and len(result) == 1:
             return result[0]
-        elif all(isinstance(res, Terminal) for res in result) or all(
-            isinstance(res, str) for res in result
+        elif simplify and (
+            all(isinstance(res, Terminal) for res in result)
+            or all(isinstance(res, str) for res in result)
         ):
             if simplify:
-                # TODO: log when this is used?
-                # TODO: better combining of ctx?
                 try:
                     ctx = copy.copy(result[0]._ctx)
                     ctx.symbol = copy.copy(ctx.symbol)
@@ -636,8 +635,6 @@ class AstVisitor(grammar.Visitor):
                 return Terminal(
                     ctx, value=" ".join(map(lambda t: getattr(t, "value", t), result))
                 )
-            else:
-                return result
         elif all(
             isinstance(res, AstNode) and not isinstance(res, Unshaped) for res in result
         ) or (not simplify and all(res is not None for res in result)):
