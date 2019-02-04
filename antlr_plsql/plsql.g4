@@ -159,14 +159,15 @@ literal
     ;
 
 string_function
-    : SUBSTRING '(' expression ',' expression (',' expression)? ')'
-    | TO_CHAR '(' (table_element | standard_function | expression)
+    : name=SUBSTRING '(' expression ',' expression (',' expression)? ')'  // todo: incorrect?
+    | name=SUBSTRING '(' expression (FROM atom)? (FOR atom)? ')'
+    | name=TO_CHAR '(' (table_element | standard_function | expression)
                   (',' quoted_string)? (',' quoted_string)? ')'
-    | DECODE '(' expressions  ')'
-    | CHR '(' concatenation USING NCHAR_CS ')'
-    | NVL '(' expression ',' expression ')'
-    | TRIM '(' ((LEADING | TRAILING | BOTH)? quoted_string? FROM)? concatenation ')'
-    | TO_DATE '(' expression (',' quoted_string)? ')'
+    | name=DECODE '(' expressions  ')'
+    | name=CHR '(' concatenation USING NCHAR_CS ')'
+    | name=NVL '(' expression ',' expression ')'
+    | name=TRIM '(' ((LEADING | TRAILING | BOTH)? quoted_string? FROM)? concatenation ')'
+    | name=TO_DATE '(' expression (',' quoted_string)? ')'
     ;
 
 expressions
@@ -2533,11 +2534,12 @@ standard_function
     | regular_id function_argument_modeling using_clause?                                                       #TodoCall
     | (CAST | XMLCAST) '(' (MULTISET '(' subquery ')' | concatenation | expression) AS type_spec ')'            #CastCall
     | (subquery | atom) '::' type_spec                                                                          #CastCall
+    | standard_function '::' type_spec                                                                          #CastCall
     | CHR '(' concatenation USING NCHAR_CS ')'                                                                  #TodoCall
     | COLLECT '(' (DISTINCT | UNIQUE)? concatenation collect_order_by_part? ')'                                 #TodoCall
-    | name=within_or_over_clause_keyword function_argument within_or_over_part+                                 #TodoCall
+    | name=within_or_over_clause_keyword function_argument within_or_over_part+                                 #WithinOrOverCall
     | DECOMPOSE '(' concatenation (CANONICAL | COMPATIBILITY)? ')'                                              #TodoCall
-    | name=EXTRACT '(' regular_id FROM concatenation ')'                                                        #TodoCall
+    | name=EXTRACT '(' regular_id FROM concatenation ')'                                                        #ExtractCall
     | (FIRST_VALUE | LAST_VALUE) function_argument_analytic respect_or_ignore_nulls? over_clause                #TodoCall
     | standard_prediction_function_keyword
       '(' expression (',' expression)* cost_matrix_clause? using_clause? ')'                                    #TodoCall

@@ -243,12 +243,15 @@ class Call(AstNode):
         "function_argument->args",
         "function_argument_analytic->args",
         "concatenation->args",
+        "within_clause",
         "over_clause",
     ]
     _rules = [
         ("aggregate_windowed_function", "_from_aggregate_call"),
+        ("ExtractCall", "_from_extract"),
         ("FuncCall", "_from_func"),
-        ("TodoCall", "_from_todo"),
+        ("WithinOrOverCall", "_from_within"),
+        ("string_function", "_from_str_func"),
     ]
 
     @staticmethod
@@ -267,30 +270,50 @@ class Call(AstNode):
         return obj
 
     @classmethod
+    def _from_extract(cls, visitor, ctx):
+        obj = cls._from_fields(visitor, ctx)
+
+        regular_id_ctx = ctx.regular_id()
+        obj.component = visitor.visit(regular_id_ctx)
+
+        concatenation_ctx = ctx.concatenation()
+        obj.expr = visitor.visit(concatenation_ctx)
+
+        return obj
+
+    @classmethod
     def _from_func(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
         if hasattr(obj.args, "arr"):
-            # args may be Unshaped by non-AstNode argument
+            # TODO: look at simplify option
+            # args may be Unshaped by non-AstNode argument in visit of function_argument
             # unpack the array inside:
             obj.args = obj.args.arr
         return obj
 
     @classmethod
-    def _from_todo(cls, visitor, ctx):
-        # todo: refactor (grammar shouldn't have TodoCall)
+    def _from_within(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
-        regular_id_ctx = ctx.regular_id()
-        if regular_id_ctx is not None:
-            obj.component = visitor.visit(regular_id_ctx)
-        concatenation_ctx = ctx.concatenation()
-        if concatenation_ctx is not None:
-            obj.expr = visitor.visit(concatenation_ctx)
+
         within_or_over_part_ctx = ctx.within_or_over_part()
         if within_or_over_part_ctx is not None:
+            # works only for one such clause
+            # TODO: convention for fields where multiple possible
+            # >1 (>0): always, mostly, sometimes, exceptionally?
             for el in within_or_over_part_ctx:
+                within_clause_ctx = el.order_by_clause()
+                if within_clause_ctx is not None:
+                    obj.within_clause = visitor.visit(within_clause_ctx)
                 over_clause_ctx = el.over_clause()
                 if over_clause_ctx is not None:
                     obj.over_clause = visitor.visit(over_clause_ctx)
+
+        return obj
+
+    @classmethod
+    def _from_str_func(cls, visitor, ctx):
+        obj = cls._from_fields(visitor, ctx)
+        obj.args = visitor.visitChildren(ctx, predicate=is_terminal, simplify=False)  # TODO .arr
         return obj
 
 
@@ -416,6 +439,24 @@ class AddConstraints(AstNode):
     _fields_spec = ["out_of_line_constraint->constraints"]
 
 
+class DropConstraints(AstNode):
+    _fields_spec = ["constraints"]
+
+    @classmethod
+    def _from_drop(cls, visitor, ctx):
+        obj = cls._from_fields(visitor, ctx)
+
+        drop_contstraint_clauses_ctx = ctx.drop_constraint_clause()
+        obj.constraints = [
+            visitor.visit(
+                drop.drop_primary_key_or_unique_or_generic_clause().constraint_name()
+            )
+            for drop in drop_contstraint_clauses_ctx
+        ]
+
+        return obj
+
+
 class DropTable(AstNode):
     _rules = [("drop_table", "_from_table")]
     _fields_spec = ["tableview_name->name", "existence_check"]
@@ -446,7 +487,7 @@ class Constraint(AstNode):
         if ctx.UNIQUE():
             obj.type = "unique"
         elif ctx.PRIMARY() and ctx.KEY():
-            obj.type = "primary_key"  # todo: format?
+            obj.type = "primary_key"  # TODO: format?
         elif foreign_key_ctx and foreign_key_ctx.FOREIGN() and foreign_key_ctx.KEY():
             obj.type = "foreign_key"
             columns_ctx = foreign_key_ctx.paren_column_list().column_list()
@@ -513,8 +554,9 @@ class UpdateStmt(AstNode):
 
 
 class Update(AstNode):
+    # TODO: BinExpr? Not fit for multiple columns combined?
     _rules = ["column_based_update_set_clause"]
-    _fields_spec = ["column", "expression"]
+    _fields_spec = ["column_name->column", "expression"]
 
 
 class DeleteStmt(AstNode):
@@ -643,6 +685,8 @@ class AstVisitor(grammar.Visitor):
     def visitConstraint_clauses(self, ctx):
         if ctx.ADD():
             return AddConstraints._from_fields(self, ctx)
+        if ctx.drop_constraint_clause():
+            return DropConstraints._from_drop(self, ctx)
 
     # simple dropping of tokens -----------------------------------------------
     # Note can't filter out TerminalNodeImpl from some currently as in something like
@@ -728,32 +772,6 @@ speaker = Speaker(**speaker_cfg)
 
 if __name__ == "__main__":
     query = """
--- Convert the values in firstname to a max. of 16 characters
-ALTER TABLE professors
-ALTER COLUMN firstname
-TYPE varchar(16)
-USING SUBSTRING(firstname FROM 1 FOR 16);
-
-
-
-INSERT INTO transactions (transaction_date, amount, fee)
-VALUES ('2018-09-24', 5454, '30');
--- Rename the university_shortname column
-ALTER TABLE professors
-RENAME COLUMN university_shortname TO university_id;
-
--- Add a foreign key on professors referencing universities
-ALTER TABLE professors
-ADD CONSTRAINT professors_fkey FOREIGN KEY (university_id) REFERENCES universities (id);
-ALTER TABLE affiliations
-ADD COLUMN professor_id integer REFERENCES professors (id);
-ALTER TABLE professors
-ADD CONSTRAINT professors_fkey FOREIGN KEY (university_id) REFERENCES universities (id);
-CREATE TEMP TABLE indicators AS
-  SELECT id,
-         CAST (description LIKE '%@%' AS INTEGER) AS email,
-         CAST (description LIKE '%___-___-____%' AS INTEGER) AS phone
-    FROM evanston311;
-
+SELECT id FROM artists WHERE id > 100
     """
     parse(query)
