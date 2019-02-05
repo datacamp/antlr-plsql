@@ -526,7 +526,7 @@ class InsertStmt(AstNode):
         values_ctx = ctx.values_clause()
         if values_ctx:
             values_list_ctx = values_ctx.expression_list()
-            obj = visitor.visit(values_list_ctx)
+            obj.values = visitor.visit(values_list_ctx)
 
         query_ctx = ctx.select_statement()
         if query_ctx:
