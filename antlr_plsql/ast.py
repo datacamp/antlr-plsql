@@ -7,8 +7,10 @@ from antlr_ast.ast import (
     bind_to_visitor,
     AstNode,
     Speaker,
-    AntlrException as ParseError,  # noinspection PyUnresolvedReferences
-)
+    BaseAstVisitor,
+    Terminal,                       # noinspection PyUnresolvedReferences
+    AntlrException as ParseError,   # noinspection PyUnresolvedReferences
+    )
 
 from . import grammar
 
@@ -16,23 +18,13 @@ from . import grammar
 # TODO: Finish Unary+Binary Expr
 #       sql_script
 
-DEBUG = False
 
-
-def parse(sql_text, start="sql_script", strict=False):
-    tree = parse_ast(grammar, sql_text, start, strict)
+def parse(sql_text, start="sql_script", **kwargs):
+    tree = parse_ast(grammar, sql_text, start, **kwargs)
     return AstVisitor().visit(tree)
 
 
 import yaml
-
-
-class Unshaped(AstNode):
-    _fields_spec = ["arr"]
-
-    def __init__(self, ctx, arr=tuple()):
-        self.arr = arr
-        self._ctx = ctx
 
 
 class Script(AstNode):
@@ -572,99 +564,10 @@ class DeleteStmt(AstNode):
 # class FunctionArgument
 
 
-class Terminal(AstNode):
-    _fields_spec = ["value"]
-    DEBUG_INSTANCES = []
-
-    def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls, *args, **kwargs)
-        if DEBUG:
-            cls.DEBUG_INSTANCES.append(instance)
-            return instance
-        else:
-            return kwargs.get("value", "")
-
-    def __str__(self):
-        return self.value
-
-
 # PARSE TREE VISITOR ----------------------------------------------------------
 
 
-class AstVisitor(grammar.Visitor):
-    def visitChildren(self, node, predicate=None, simplify=True):
-        """This is the default visiting behaviour
-
-        :param node: current node
-        :param predicate: skip a child if this evaluates to false
-        :param simplify: whether the result of the visited children should be combined if possible
-        :return:
-        """
-        result = self.defaultResult()
-        n = node.getChildCount()
-        for i in range(n):
-            if not self.shouldVisitNextChild(node, result):
-                return
-
-            c = node.getChild(i)
-            if predicate and not predicate(c):
-                continue
-
-            childResult = c.accept(self)
-            result = self.aggregateResult(result, childResult)
-
-        return self.result_to_ast(node, result, simplify=simplify)
-
-    @staticmethod
-    def result_to_ast(node, result, simplify=True):
-        if len(result) == 0:
-            return None
-        elif simplify and len(result) == 1:
-            return result[0]
-        elif simplify and (
-            all(isinstance(res, Terminal) for res in result)
-            or all(isinstance(res, str) for res in result)
-        ):
-            if simplify:
-                try:
-                    ctx = copy.copy(result[0]._ctx)
-                    ctx.symbol = copy.copy(ctx.symbol)
-                    ctx.symbol.stop = result[-1]._ctx.symbol.stop
-                except AttributeError:
-                    ctx = node
-                return Terminal(
-                    ctx, value=" ".join(map(lambda t: getattr(t, "value", t), result))
-                )
-        elif all(
-            isinstance(res, AstNode) and not isinstance(res, Unshaped) for res in result
-        ) or (not simplify and all(res is not None for res in result)):
-            return result
-        else:
-            if all(res is None for res in result):
-                # return unparsed text
-                result = node.start.getInputStream().getText(
-                    node.start.start, node.stop.stop
-                )
-            return Unshaped(node, result)
-
-    def defaultResult(self):
-        return list()
-
-    def aggregateResult(self, aggregate, nextResult):
-        aggregate.append(nextResult)
-        return aggregate
-
-    def visitTerminal(self, ctx):
-        """Converts case insensitive keywords and identifiers to lowercase"""
-        text = ctx.getText()
-        quotes = ["'", '"']
-        if not (text[0] in quotes and text[-1] in quotes):
-            text = text.lower()
-        return Terminal(ctx, value=text)
-
-    def visitErrorNode(self, node):
-        return None
-
+class AstVisitor(BaseAstVisitor, grammar.Visitor):
     def visitSubqueryParen(self, ctx):
         return self.visit(ctx.subquery())
 
