@@ -134,8 +134,8 @@ index_properties
     ;
 
 global_partitioned_index
-    : GLOBAL PARTITION BY (RANGE '(' (','? column_name)+ ')' '(' index_partitioning_clause ')'
-                          | HASH '(' (','? column_name)+ ')'
+    : GLOBAL PARTITION BY (RANGE paren_column_list '(' index_partitioning_clause ')'
+                          | HASH paren_column_list
                                             (individual_hash_partitions
                                             | hash_partitions_by_quantity
                                             )
@@ -352,8 +352,8 @@ virtual_column_definition
 
 out_of_line_constraint
     : ( (CONSTRAINT constraint_name)?
-          ( UNIQUE '(' (','? column_name)+ ')'
-          | PRIMARY KEY '(' (','? column_name)+ ')'
+          ( UNIQUE paren_column_list
+          | PRIMARY KEY paren_column_list
           | foreign_key_clause
           | CHECK '(' expression ')'
           )
@@ -505,6 +505,8 @@ references_clause
 
 paren_column_list
     : LEFT_PAREN column_list RIGHT_PAREN
+    // todo: from column_name_list
+    // : '(' column_name (',' column_name)* ')'
     ;
 
 column_list
@@ -618,7 +620,7 @@ table_partitioning_clauses
     ;
 
 range_partitions
-    : PARTITION BY RANGE '(' (','? column_name)+ ')'
+    : PARTITION BY RANGE paren_column_list
         (INTERVAL '(' expression ')' (STORE IN '(' (','? tablespace)+ ')' )? )?
           '(' (','? PARTITION partition_name? range_values_clause table_partition_description)+ ')'
     ;
@@ -644,19 +646,19 @@ list_values_clause
     ;
 
 hash_partitions
-    : PARTITION BY HASH '(' (','? column_name)+ ')'
+    : PARTITION BY HASH paren_column_list
         (individual_hash_partitions | hash_partitions_by_quantity)
     ;
 
 composite_range_partitions
-    : PARTITION BY RANGE '(' (','? column_name)+ ')'
+    : PARTITION BY RANGE paren_column_list
        (INTERVAL '(' expression ')' (STORE IN '(' (','? tablespace)+ ')' )? )?
        (subpartition_by_range | subpartition_by_list | subpartition_by_hash)
          '(' (','? range_partition_desc)+ ')'
     ;
 
 subpartition_by_range
-    : SUBPARTITION BY RANGE '(' (','? column_name)+ ')' subpartition_template?
+    : SUBPARTITION BY RANGE paren_column_list subpartition_template?
     ;
 
 subpartition_by_list
@@ -692,7 +694,7 @@ hash_subpartition_quantity
     ;
 
 subpartition_by_hash
-    : SUBPARTITION BY HASH '(' (','? column_name)+ ')'
+    : SUBPARTITION BY HASH paren_column_list
        (SUBPARTITIONS UNSIGNED_INTEGER (STORE IN '(' (','? tablespace)+ ')' )?
        | subpartition_template
        )?
@@ -754,7 +756,7 @@ system_partitioning
 
 enable_disable_clause
     : (ENABLE | DISABLE) (VALIDATE | NOVALIDATE)?
-         (UNIQUE '(' (','? column_name)+ ')'
+         (UNIQUE paren_column_list
          | PRIMARY KEY
          | CONSTRAINT constraint_name
          ) using_index_clause? exceptions_clause?
@@ -923,7 +925,7 @@ alter_mapping_table_clause
 constraint_clauses
     : ADD '(' (out_of_line_constraint* | out_of_line_ref_constraint) ')'
     | ADD  (out_of_line_constraint* | out_of_line_ref_constraint)
-    | MODIFY (CONSTRAINT constraint_name | PRIMARY KEY | UNIQUE '(' (','? column_name)+ ')')  constraint_state CASCADE?
+    | MODIFY (CONSTRAINT constraint_name | PRIMARY KEY | UNIQUE paren_column_list)  constraint_state CASCADE?
     | RENAME CONSTRAINT old_constraint_name TO new_constraint_name
     | drop_constraint_clause+
     ;
@@ -941,7 +943,7 @@ drop_constraint_clause
     ;
 
 drop_primary_key_or_unique_or_generic_clause
-    : (PRIMARY KEY | UNIQUE '(' (','? column_name)+ ')') CASCADE? (KEEP | DROP)?
+    : (PRIMARY KEY | UNIQUE paren_column_list) CASCADE? (KEEP | DROP)?
     | CONSTRAINT constraint_name CASCADE?
     ;
 
@@ -1878,7 +1880,7 @@ subquery_factoring_clause
     ;
 
 factoring_element
-    : query_name column_name_list? AS '(' subquery order_by_clause? ')'
+    : query_name paren_column_list? AS '(' subquery order_by_clause? ')'
       search_clause? cycle_clause?
     ;
 
@@ -2129,10 +2131,6 @@ limit_clause
     : LIMIT expression
     ;
 
-column_name_list
-    : '(' column_name (',' column_name)* ')'
-    ;
-
 // $>
 
 update_statement
@@ -2189,7 +2187,7 @@ conditional_insert_else_part
     ;
 
 insert_into_clause
-    : INTO general_table_ref column_name_list?
+    : INTO general_table_ref paren_column_list?
     ;
 
 values_clause
@@ -2218,7 +2216,7 @@ merge_update_delete_part
     ;
 
 merge_insert_clause
-    : WHEN NOT MATCHED THEN INSERT column_name_list? VALUES expression_list where_clause?
+    : WHEN NOT MATCHED THEN INSERT paren_column_list? VALUES expression_list where_clause?
     ;
 
 selected_tableview
@@ -2571,7 +2569,7 @@ standard_function
 
 aggregate_windowed_function
     : over_clause_keyword function_argument_analytic over_clause?
-    | COUNT '(' ( args='*' | pref=(DISTINCT | UNIQUE | ALL)? concatenation) ')' over_clause?
+    | COUNT '(' ( args=star | pref=(DISTINCT | UNIQUE | ALL)? concatenation) ')' over_clause?
     ;
 
 over_clause_keyword
@@ -2639,7 +2637,7 @@ windowing_elements
     ;
 
 using_clause
-    : USING ('*' | using_element (',' using_element)*)
+    : USING (star | using_element (',' using_element)*)
     ;
 
 using_element
@@ -2931,7 +2929,7 @@ function_argument_analytic
 
 function_argument_modeling
     : '(' column_name (',' (numeric | NULL) (',' (numeric | NULL))?)?
-      USING (tableview_name '.' '*' | '*' | expression column_alias? (',' expression column_alias?)*)
+      USING (tableview_name '.' star | star | expression column_alias? (',' expression column_alias?)*)
       ')' keep_clause?
     ;
 
