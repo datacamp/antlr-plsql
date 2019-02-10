@@ -1,4 +1,5 @@
-import copy
+import yaml
+import pkg_resources
 
 from antlr4.tree import Tree
 
@@ -10,7 +11,7 @@ from antlr_ast.ast import (
     BaseAstVisitor,
     Terminal,                       # noinspection PyUnresolvedReferences
     AntlrException as ParseError,   # noinspection PyUnresolvedReferences
-    )
+)
 
 from . import grammar
 
@@ -24,7 +25,7 @@ def parse(sql_text, start="sql_script", **kwargs):
     return AstVisitor().visit(tree)
 
 
-import yaml
+# AstNodes
 
 
 class Script(AstNode):
@@ -34,12 +35,10 @@ class Script(AstNode):
 
     @classmethod
     def _from_sql_script(cls, visitor, ctx):
-        body = []
-
-        for child in ctx.children:
-            if not isinstance(child, Tree.TerminalNodeImpl):
-                body.append(visitor.visit(child))
-
+        # future todo: extract body rule in grammar to use _fields_spec for this?
+        # future todo: support + syntax between multiple fields to combine
+        # + op semantics:  AND for terminals, else flat list concat for list
+        body = visitor.visitChildren(ctx, predicate=is_terminal, simplify=False)
         return cls(ctx, body=body)
 
 
@@ -68,7 +67,8 @@ class SelectStmt(AstNode):
 
     @classmethod
     def _from_query_block(cls, visitor, ctx):
-        # allowing arbitrary order for some clauses, means their results are lists w/single item
+        # allowing arbitrary order for some clauses makes their results a single item list
+        # future todo: represent unpacking with *
         # could also do testing to make sure clauses weren't specified multiple times
         query = cls._from_fields(visitor, ctx)
         unlist_clauses = cls._fields[cls._fields.index("group_by_clause") :]
@@ -113,7 +113,7 @@ class Identifier(AstNode):
     _rules = ["dot_id"]
 
 
-# TODO
+# TODO: similar nodes for keyword( combination)s?
 class Star(AstNode):
     _fields_spec = []
     _rules = ["star"]
@@ -121,13 +121,13 @@ class Star(AstNode):
 
 class TableAliasExpr(AstNode):
     # TODO order_by_clause
-    _fields_spec = ["query_name->alias", "column_name_list->alias_columns", "subquery"]
+    _fields_spec = ["alias=query_name", "alias_columns=paren_column_list", "subquery"]
     _rules = ["factoring_element"]
 
 
 class AliasExpr(AstNode):
     _fields_spec = ["expr", "alias"]
-    _rules = [("alias_expr", "_from_alias"), ("TableRefAux", "_from_table_ref")]
+    _rules = [("Alias_expr", "_from_alias"), ("TableRefAux", "_from_table_ref")]
 
     @classmethod
     def _from_alias(cls, visitor, ctx):
@@ -188,17 +188,17 @@ class BinaryExpr(AstNode):
 
 
 class UnaryExpr(AstNode):
-    _fields_spec = ["op", "unary_expression->expr"]
+    _fields_spec = ["op", "expr=unary_expression"]
     _rules = ["UnaryExpr", "CursorExpr", "NotExpr"]
 
 
 class OrderByExpr(AstNode):
-    _fields_spec = ["order_by_elements->expr"]
+    _fields_spec = ["expr=order_by_elements"]
     _rules = ["order_by_clause"]
 
 
 class SortBy(AstNode):
-    _fields_spec = ["expression->expr", "direction", "nulls"]
+    _fields_spec = ["expr=expression", "direction", "nulls"]
     _rules = ["order_by_elements"]
 
 
@@ -206,10 +206,10 @@ class JoinExpr(AstNode):
     _fields_spec = [
         "left",
         "join_type",
-        "table_ref->right",
-        "join_on_part->cond",
+        "right=table_ref",
+        "cond=join_on_part",
         # fields below are Oracle specific
-        "join_using_part->using",
+        "using=join_using_part",
         "query_partition_clause",
     ]
     _rules = [("JoinExpr", "_from_table_ref")]
@@ -229,12 +229,13 @@ from collections.abc import Sequence
 class Call(AstNode):
     _fields_spec = [
         "name",
-        "dot_id->name",
+        "name=dot_id",
         "pref",
         "args",
-        "function_argument->args",
-        "function_argument_analytic->args",
-        "concatenation->args",
+        "args=function_argument",
+        "args=function_argument_analytic",
+        "component=regular_id",
+        "expr=concatenation",
         "within_clause",
         "over_clause",
     ]
@@ -265,11 +266,11 @@ class Call(AstNode):
     def _from_extract(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
 
-        regular_id_ctx = ctx.regular_id()
-        obj.component = visitor.visit(regular_id_ctx)
-
-        concatenation_ctx = ctx.concatenation()
-        obj.expr = visitor.visit(concatenation_ctx)
+        # regular_id_ctx = ctx.regular_id()
+        # obj.component = visitor.visit(regular_id_ctx)
+        #
+        # concatenation_ctx = ctx.concatenation()
+        # obj.expr = visitor.visit(concatenation_ctx)
 
         return obj
 
@@ -310,104 +311,102 @@ class Call(AstNode):
 
 
 class Cast(AstNode):
-    _rules = ["CastCall"]
     _fields_spec = [
-        "type_spec->type",
-        "subquery->statement",
-        "concatenation->statement",
-        "expression->statement",
-        "atom->statement",
+        "type=type_spec",
+        "statement=subquery",
+        "statement=concatenation",
+        "statement=expression",
+        "statement=atom",
     ]
+    _rules = ["CastCall"]
 
 
 class OverClause(AstNode):
+    _rules = ["over_clause"]
     _fields_spec = [
-        "query_partition_clause->partition",
+        "partition=query_partition_clause",
         "order_by_clause",
         "windowing_clause",
     ]
-    _rules = ["over_clause"]
 
 
 class Case(AstNode):
-    _fields_spec = [
-        "simple_case_when_part->switches",
-        "searched_case_when_part->switches",
-        "case_else_part->else_expr",
-    ]
     _rules = ["simple_case_statement", "searched_case_statement"]  # case_statement
+    _fields_spec = [
+        "switches=simple_case_when_part",
+        "switches=searched_case_when_part",
+        "else_expr=case_else_part",
+    ]
     # 'label' in grammar not correct?
 
 
 class CaseWhen(AstNode):
-    _fields_spec = ["whenExpr->when", "thenExpr->then"]
     _rules = ["simple_case_when_part", "searched_case_when_part"]
+    _fields_spec = ["when=whenExpr", "then=thenExpr"]
 
 
 class PartitionBy(AstNode):
-    _rules = ["query_partition_clause"]
     _fields_spec = ["expression"]
+    _rules = ["query_partition_clause"]
 
 
 class RenameColumn(AstNode):
+    _fields_spec = ["old_name=old_column_name", "new_name=new_column_name"]
     _rules = ["rename_column_clause"]
-    _fields_spec = ["old_column_name->old_name", "new_column_name->new_name"]
 
 
 class Column(AstNode):
-    _rules = ["column_definition"]
     _fields_spec = [
-        "column_name->name",
-        "datatype->data_type",
-        "type_name->data_type",
-        "inline_constraint->constraints",
+        "name=column_name",
+        "data_type=datatype",
+        "data_type=type_name",
+        "constraints=inline_constraint",
     ]
+    _rules = ["column_definition"]
 
 
 class AddColumns(AstNode):
+    _fields_spec = ["columns=column_definition"]
     _rules = ["add_column_clause"]
-    _fields_spec = ["column_definition->columns"]
 
 
 class DropColumn(AstNode):
-    _rules = ["drop_column_clause"]
     _fields_spec = ["names"]
+    _rules = ["drop_column_clause"]
 
 
 class AlterColumn(AstNode):
+    _fields_spec = ["name=column_name", "op", "data_type=datatype", "expression"]
     _rules = ["alter_column_clause"]
-    _fields_spec = ["column_name->name", "op", "datatype->data_type", "expression"]
 
 
 class DropConstraint(AstNode):
+    _fields_spec = ["name=drop_primary_key_or_unique_or_generic_clause"]
     _rules = ["drop_constraint_clause"]
-    _fields_spec = ["drop_primary_key_or_unique_or_generic_clause->name"]
 
 
 class Reference(AstNode):
+    _fields_spec = ["table=tableview_name", "columns"]
     _rules = [("references_clause", "_from_references")]
-    _fields_spec = ["tableview_name->table", "columns"]
 
     @classmethod
     def _from_references(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
 
-        # TODO extract as visitor ~ expression_list
-        obj.columns = visitor.visitChildren(
-            ctx.paren_column_list().column_list(), predicate=is_terminal, simplify=False
-        )
+        columns_ctx = ctx.paren_column_list().column_list()
+        obj.columns = visitor.visit_field(columns_ctx, columns_ctx.column_name)
 
         return obj
 
 
 class CreateTable(AstNode):
-    _rules = [("create_table", "_from_table")]
     _fields_spec = [
-        "tableview_name->name",
-        "TEMPORARY->temporary",
-        "select_statement->query",
+        "name=tableview_name",
+        "temporary=TEMPORARY",
+        "query=select_statement",
         "columns",
     ]
+    _rules = [("create_table", "_from_table")]
 
     @classmethod
     def _from_table(cls, visitor, ctx):
@@ -422,26 +421,28 @@ class CreateTable(AstNode):
 
 
 class AlterTable(AstNode):
-    _rules = ["alter_table"]
     _fields_spec = [
-        "tableview_name->name",
-        "column_clauses->changes",
-        "constraint_clauses->changes",
+        "name=tableview_name",
+        "changes=column_clauses",
+        "changes=constraint_clauses",
     ]
+    _rules = ["alter_table"]
 
 
 class AddConstraints(AstNode):
-    _fields_spec = ["out_of_line_constraint->constraints"]
+    _fields_spec = ["constraints=out_of_line_constraint"]
 
 
 class DropConstraints(AstNode):
-    _fields_spec = ["constraints"]
+    _fields_spec = ["constraints=drop_constraint_clause"]
 
     @classmethod
     def _from_drop(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
 
         drop_contstraint_clauses_ctx = ctx.drop_constraint_clause()
+        # obj.constraints = visitor.visit_field(drop_contstraint_clauses_ctx, )
+        # future todo:
         obj.constraints = [
             visitor.visit(
                 drop.drop_primary_key_or_unique_or_generic_clause().constraint_name()
@@ -453,26 +454,22 @@ class DropConstraints(AstNode):
 
 
 class DropTable(AstNode):
+    _fields_spec = ["name=tableview_name", "existence_check"]
     _rules = [("drop_table", "_from_table")]
-    _fields_spec = ["tableview_name->name", "existence_check"]
 
     @classmethod
     def _from_table(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
 
+        # TODO: format? make combined rule and set using _field_spec?
         if ctx.IF() and ctx.EXISTS():
-            obj.existence_check = "if exists"
+            obj.existence_check = "if_exists"
         return obj
 
 
 class Constraint(AstNode):
+    _fields_spec = ["name=constraint_name", "type", "columns=paren_column_list", "reference"]
     _rules = [("out_of_line_constraint", "_from_constraint")]
-    _fields_spec = [
-        "constraint_name->name",
-        "type",
-        "column_name->columns",
-        "reference",
-    ]
 
     @classmethod
     def _from_constraint(cls, visitor, ctx):
@@ -482,15 +479,13 @@ class Constraint(AstNode):
         if ctx.UNIQUE():
             obj.type = "unique"
         elif ctx.PRIMARY() and ctx.KEY():
-            obj.type = "primary_key"  # TODO: format?
+            # TODO: format? make combined primary_key rule and set using _field_spec?
+            obj.type = "primary_key"
         elif foreign_key_ctx and foreign_key_ctx.FOREIGN() and foreign_key_ctx.KEY():
             obj.type = "foreign_key"
 
-            # TODO extract as visitor ~ expression_list
             columns_ctx = foreign_key_ctx.paren_column_list().column_list()
-            obj.columns = visitor.visitChildren(
-                columns_ctx, predicate=is_terminal, simplify=False
-            )
+            obj.columns = visitor.visit_field(columns_ctx, columns_ctx.column_name)
 
             reference_ctx = foreign_key_ctx.references_clause()
             obj.reference = visitor.visit(reference_ctx)
@@ -500,20 +495,26 @@ class Constraint(AstNode):
 
 
 class InsertStmt(AstNode):
+    # TODO: use path field spec in more places
+    _fields_spec = [
+        "table=single_table_insert.insert_into_clause.general_table_ref",
+        "columns=single_table_insert.insert_into_clause.paren_column_list",
+        "values",
+        "query",
+    ]
     _rules = [("insert_statement", "_from_single_table")]
-    _fields_spec = ["table", "columns", "values", "query"]
 
     @classmethod
     def _from_single_table(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
         ctx = ctx.single_table_insert()
 
-        insert_into_ctx = ctx.insert_into_clause()
-        obj.table = visitor.visit(insert_into_ctx.general_table_ref())
+        # insert_into_ctx = ctx.insert_into_clause()
+        # obj.table = visitor.visit(insert_into_ctx.general_table_ref())
 
-        columns_ctx = insert_into_ctx.column_name_list()
-        if columns_ctx:
-            obj.columns = visitor.visit(columns_ctx)
+        # columns_ctx = insert_into_ctx.paren_column_list()
+        # if columns_ctx:
+        #     obj.columns = visitor.visit(columns_ctx)
 
         values_ctx = ctx.values_clause()
         if values_ctx:
@@ -528,37 +529,30 @@ class InsertStmt(AstNode):
 
 
 class UpdateStmt(AstNode):
+    _fields_spec = ["table=general_table_ref", "where_clause", "from_clause", "updates"]
     _rules = [("update_statement", "_from_update")]
-    _fields_spec = [
-        "general_table_ref->table",
-        "where_clause",
-        "from_clause",
-        "updates",
-    ]
 
     @classmethod
     def _from_update(cls, visitor, ctx):
         obj = cls._from_fields(visitor, ctx)
 
-        # TODO extract as visitor ~ expression_list
         update_set_ctx = ctx.update_set_clause()
-        if update_set_ctx.column_based_update_set_clause():
-            obj.updates = visitor.visitChildren(
-                update_set_ctx, predicate=is_terminal, simplify=False
-            )
+        obj.updates = visitor.visit_field(
+            update_set_ctx, update_set_ctx.column_based_update_set_clause
+        )
 
         return obj
 
 
 class Update(AstNode):
     # TODO: BinExpr? Not fit for multiple columns combined?
+    _fields_spec = ["column=column_name", "expression"]
     _rules = ["column_based_update_set_clause"]
-    _fields_spec = ["column_name->column", "expression"]
 
 
 class DeleteStmt(AstNode):
+    _fields_spec = ["table=general_table_ref", "where_clause"]
     _rules = ["delete_statement"]
-    _fields_spec = ["general_table_ref->table", "where_clause"]
 
 
 # class FunctionArgument
@@ -579,6 +573,7 @@ class AstVisitor(BaseAstVisitor, grammar.Visitor):
     # function calls -------
 
     def visitFunction_argument_analytic(self, ctx):
+        # future todo: declarative?
         if not (ctx.respect_or_ignore_nulls() or ctx.keep_clause()):
             return [self.visit(arg) for arg in ctx.argument()]
         else:
@@ -588,6 +583,9 @@ class AstVisitor(BaseAstVisitor, grammar.Visitor):
     #    return ctx
 
     def visitConstraint_clauses(self, ctx):
+        # future todo: declarative?
+        # - create grammar rule for each branch
+        # - predicate in _rules
         if ctx.ADD():
             return AddConstraints._from_fields(self, ctx)
         if ctx.drop_constraint_clause():
@@ -596,6 +594,7 @@ class AstVisitor(BaseAstVisitor, grammar.Visitor):
     # simple dropping of tokens -----------------------------------------------
     # Note can't filter out TerminalNodeImpl from some currently as in something like
     # "SELECT a FROM b WHERE 1", the 1 will be a terminal node in where_clause
+
     def visitWhere_clause(self, ctx):
         return self.visitChildren(ctx, predicate=lambda n: n is not ctx.WHERE())
 
@@ -608,14 +607,17 @@ class AstVisitor(BaseAstVisitor, grammar.Visitor):
     def visitHaving_clause(self, ctx):
         return self.visitChildren(ctx, predicate=lambda n: n is not ctx.HAVING())
 
-    # TODO similar pattern, reuse? visit_field (~ _from_fields)
+    # visit single field
+    # future todo: (rule, field) tuples represent these functions
 
     def visitExpression_list(self, ctx):
-        return [self.visit(expr) for expr in ctx.expression()]
+        # these patterns are equivalent:
+        return self.visit_field(ctx, ctx.expression)
+        # return [self.visit(expr) for expr in ctx.expression()]
         # return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
 
     def visitInto_clause(self, ctx):
-        return [self.visit(expr) for expr in ctx.variable_name()]
+        return self.visit_field(ctx, ctx.variable_name)
 
     _remove_terminal = [
         "from_clause",
@@ -635,14 +637,10 @@ class AstVisitor(BaseAstVisitor, grammar.Visitor):
         "paren_column_list",
         "column_list",
         "relational_table",
-        # "relational_properties",
-        "column_name_list",
         "update_set_clause",
     ]
 
 
-# TODO: convert more visitors now visitor generation is fixed
-# for some reason can't get this to work as in tsql
 # Override visit methods in AstVisitor for all nodes (in _rules) that convert to the AstNode classes
 import inspect
 
@@ -669,7 +667,7 @@ for rule in AstVisitor._remove_terminal:
     bind_to_visitor(AstVisitor, rule, skip_terminal_child_nodes)
 
 
-import pkg_resources
+# Create Speaker
 
 speaker_cfg = yaml.load(pkg_resources.resource_stream("antlr_plsql", "speaker.yml"))
 speaker = Speaker(**speaker_cfg)
