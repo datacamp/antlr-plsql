@@ -1,14 +1,12 @@
 import yaml
 import pkg_resources
 
-from antlr4.tree import Tree
-
 from antlr_ast.ast import (
     parse as parse_ast,
-    bind_to_visitor,
-    AstNode,
     Speaker,
     BaseAstVisitor,
+    AliasVisitor,
+    AliasNode,
     # references for export:
     Terminal,
     AntlrException as ParseError,
@@ -23,27 +21,30 @@ from . import grammar
 
 def parse(sql_text, start="sql_script", **kwargs):
     tree = parse_ast(grammar, sql_text, start, **kwargs)
-    return AstVisitor().visit(tree)
+    field_tree = BaseAstVisitor().visit(tree)
+    alias_tree = AliasVisitor(Transformer()).visit(field_tree)
+
+    return alias_tree
 
 
-# AstNodes
+# AliasNodes
 
 
-class Script(AstNode):
+class Script(AliasNode):
     _fields_spec = ["body"]
-    _rules = [("sql_script", "_from_sql_script")]
+    _rules = [("Sql_script", "_from_sql_script")]
     _priority = 0
 
     @classmethod
-    def _from_sql_script(cls, visitor, ctx):
-        # future todo: extract body rule in grammar to use _fields_spec for this?
-        # future todo: support + syntax between multiple fields to combine
-        # + op semantics:  AND for terminals, else flat list concat for list
-        body = visitor.visitChildren(ctx, predicate=is_terminal, simplify=False)
-        return cls(ctx, body=body)
+    def _from_sql_script(cls, node):
+        obj = cls.from_spec(node)
+        obj.body = (
+            node.unit_statement + node.sql_plus_command
+        )  # todo: how does unit_statement get dml prop: transformer sets it (content of list fields is replaced)
+        return obj
 
 
-class SelectStmt(AstNode):
+class SelectStmt(AliasNode):
     _fields_spec = [
         "pref",
         "target_list",
@@ -60,18 +61,18 @@ class SelectStmt(AstNode):
         "with_clause",
     ]
     _rules = [
-        ("query_block", "_from_query_block"),
-        ("select_statement", "_from_select"),
+        ("Query_block", "_from_query_block"),
+        ("Select_statement", "_from_select"),
     ]
 
     _priority = 1
 
     @classmethod
-    def _from_query_block(cls, visitor, ctx):
+    def _from_query_block(cls, node):
         # allowing arbitrary order for some clauses makes their results a single item list
         # future todo: represent unpacking with *
         # could also do testing to make sure clauses weren't specified multiple times
-        query = cls._from_fields(visitor, ctx)
+        query = cls.from_spec(node)
         unlist_clauses = cls._fields[cls._fields.index("group_by_clause") :]
         for k in unlist_clauses:
             attr = getattr(query, k, [])
@@ -81,52 +82,65 @@ class SelectStmt(AstNode):
         return query
 
     @classmethod
-    def _from_select(cls, visitor, ctx):
-        select = visitor.visit(ctx.subquery())
-        with_ctx = ctx.subquery_factoring_clause()
-        if with_ctx is not None:
-            with_clause = visitor.visit(with_ctx)
+    def _from_select(cls, node):
+        select = node.subquery
+
+        # todo: rule alias (type) check helper (check isinstance BaseClass + name of subtype)
+        while type(select).__name__ == "SubqueryParen":
+            # unpack brackets recursively
+            select = select.subquery
+
+        # strict: use safe access because only one rule alias has this property
+        if select.query_block:
+            select = select.query_block
+
+        with_clause = node.subquery_factoring_clause
+        if with_clause:
             select.with_clause = with_clause
+
+        if not type(select).__name__ == "SubqueryCompound":
+            select = cls.from_spec(select)
+
         return select
 
 
-class Union(AstNode):
-    _fields_spec = ["left", "op", "right", "order_by_clause"]
+class Union(AliasNode):
+    _fields_spec = ["left", "op", "right", "order_by_clause", "with_clause"]
     _rules = [("SubqueryCompound", "_from_subquery_compound")]
 
     @classmethod
-    def _from_subquery_compound(cls, visitor, ctx):
+    def _from_subquery_compound(cls, node):
         # hoists up ORDER BY clauses from the right SELECT statement
         # since the final ORDER BY applies to the entire statement (not just subquery)
-        union = cls._from_fields(visitor, ctx)
-        if not isinstance(ctx.right, grammar.Parser.SubqueryParenContext):
-            order_by = getattr(union.right, "order_by_clause", None)
-            union.order_by_clause = order_by
-            # remove from right SELECT
-            if order_by:
-                union.right.order_by_clause = None
+        union = cls.from_spec(node)
+
+        order_by = getattr(union.right, "order_by_clause", None)
+        union.order_by_clause = order_by
+        # remove from right SELECT
+        if order_by:
+            union.right.order_by_clause = None
 
         return union
 
 
-class Identifier(AstNode):
+class Identifier(AliasNode):
     _fields_spec = ["fields"]
-    _rules = ["dot_id"]
+    _rules = ["Dot_id"]
 
 
 # TODO: similar nodes for keyword( combination)s?
-class Star(AstNode):
+class Star(AliasNode):
     _fields_spec = []
-    _rules = ["star"]
+    _rules = ["Star"]
 
 
-class TableAliasExpr(AstNode):
+class TableAliasExpr(AliasNode):
     # TODO order_by_clause
     _fields_spec = ["alias=query_name", "alias_columns=paren_column_list", "subquery"]
-    _rules = ["factoring_element"]
+    _rules = ["Factoring_element"]
 
 
-class AliasExpr(AstNode):
+class AliasExpr(AliasNode):
     _fields_spec = [
         # Alias_expr
         "alias",
@@ -138,15 +152,15 @@ class AliasExpr(AstNode):
     _rules = [("Alias_expr", "_unpack_alias"), ("TableRefAux", "_unpack_alias")]
 
     @classmethod
-    def _unpack_alias(cls, visitor, ctx):
-        obj = cls._from_fields(visitor, ctx)
+    def _unpack_alias(cls, node):
+        obj = cls.from_spec(node)
         if obj.alias is not None:
             return obj
         else:
             return obj.expr
 
 
-class BinaryExpr(AstNode):
+class BinaryExpr(AliasNode):
     _fields_spec = ["left", "op", "right"]
     _rules = [
         "BinaryExpr",
@@ -162,19 +176,19 @@ class BinaryExpr(AstNode):
     ]
 
     @classmethod
-    def _from_mod(cls, visitor, ctx):
-        bin_expr = cls._from_fields(visitor, ctx)
-        ctx_not = ctx.NOT()
+    def _from_mod(cls, node):
+        bin_expr = cls.from_spec(node)
+        ctx_not = node.NOT
         if ctx_not:
-            return UnaryExpr(ctx, op=visitor.visit(ctx_not), expr=bin_expr)
+            return UnaryExpr(node, {"op": ctx_not, "expr": bin_expr})
 
         return bin_expr
 
     @classmethod
-    def _from_in_expr(cls, visitor, ctx):
+    def _from_in_expr(cls, node):
         # NOT IN produces unary expression
-        bin_or_unary = cls._from_mod(visitor, ctx)
-        right = visitor.visit(ctx.subquery() or ctx.expression_list())
+        bin_or_unary = cls._from_mod(node)
+        right = node.subquery or node.expression_list
         if isinstance(bin_or_unary, UnaryExpr):
             bin_or_unary.expr.right = right
         else:
@@ -182,22 +196,22 @@ class BinaryExpr(AstNode):
         return bin_or_unary
 
 
-class UnaryExpr(AstNode):
+class UnaryExpr(AliasNode):
     _fields_spec = ["op", "expr=unary_expression"]
     _rules = ["UnaryExpr", "CursorExpr", "NotExpr"]
 
 
-class OrderByExpr(AstNode):
+class OrderByExpr(AliasNode):
     _fields_spec = ["expr=order_by_elements"]
-    _rules = ["order_by_clause"]
+    _rules = ["Order_by_clause"]
 
 
-class SortBy(AstNode):
+class SortBy(AliasNode):
     _fields_spec = ["expr=expression", "direction", "nulls"]
-    _rules = ["order_by_elements"]
+    _rules = ["Order_by_elements"]
 
 
-class JoinExpr(AstNode):
+class JoinExpr(AliasNode):
     _fields_spec = [
         "left=table_ref",
         "join_type=join_clause.join_type",
@@ -213,7 +227,7 @@ class JoinExpr(AstNode):
 from collections.abc import Sequence
 
 
-class Call(AstNode):
+class Call(AliasNode):
     _fields_spec = [
         "name",
         "name=dot_id",
@@ -227,21 +241,22 @@ class Call(AstNode):
         "over_clause",
     ]
     _rules = [
-        ("aggregate_windowed_function", "_from_aggregate_call"),
+        ("Aggregate_windowed_function", "_from_aggregate_call"),
         "ExtractCall",
-        ("FuncCall", "_from_func"),
+        "FuncCall",
         ("WithinOrOverCall", "_from_within"),
-        ("string_function", "_from_str_func"),
+        ("String_function", "_from_str_func"),
     ]
 
-    @staticmethod
-    def get_name(ctx):
-        return ctx.children[0].getText().upper()
-
     @classmethod
-    def _from_aggregate_call(cls, visitor, ctx):
-        obj = cls._from_fields(visitor, ctx)
-        obj.name = cls.get_name(ctx)
+    def _from_aggregate_call(cls, node):
+        obj = cls.from_spec(node)
+        # TODO: get_text (terminal not only in debug?)
+        name = node.children[0]
+        # TODO: (case) needed?
+        if not isinstance(name, str):
+            name = name._ctx.getText().lower()
+        obj.name = name
 
         if obj.args is None:
             obj.args = []
@@ -250,42 +265,42 @@ class Call(AstNode):
         return obj
 
     @classmethod
-    def _from_func(cls, visitor, ctx):
-        obj = cls._from_fields(visitor, ctx)
-        if hasattr(obj.args, "arr"):
-            # TODO: look at simplify option
-            # args may be Unshaped by non-AstNode argument in visit of function_argument
-            # unpack the array inside:
-            obj.args = obj.args.arr
-        return obj
+    def _from_within(cls, node):
+        obj = cls.from_spec(node)
 
-    @classmethod
-    def _from_within(cls, visitor, ctx):
-        obj = cls._from_fields(visitor, ctx)
-
-        within_or_over_part_ctx = ctx.within_or_over_part()
+        within_or_over_part_ctx = node.within_or_over_part
         if within_or_over_part_ctx is not None:
             # works only for one such clause
             # TODO: convention for fields where multiple possible
             # >1 (>0): always, mostly, sometimes, exceptionally?
             for el in within_or_over_part_ctx:
-                within_clause_ctx = el.order_by_clause()
+                within_clause_ctx = el.order_by_clause
                 if within_clause_ctx is not None:
-                    obj.within_clause = visitor.visit(within_clause_ctx)
-                over_clause_ctx = el.over_clause()
+                    obj.within_clause = within_clause_ctx
+                over_clause_ctx = el.over_clause
                 if over_clause_ctx is not None:
-                    obj.over_clause = visitor.visit(over_clause_ctx)
+                    obj.over_clause = over_clause_ctx
 
         return obj
 
     @classmethod
-    def _from_str_func(cls, visitor, ctx):
-        obj = cls._from_fields(visitor, ctx)
-        obj.args = visitor.visitChildren(ctx, predicate=is_terminal, simplify=False)
+    def _from_str_func(cls, node):
+        obj = cls.from_spec(node)
+        # todo: is field list if it is list in one (other) alternative?
+        obj.args = (
+            (node.expression or [])
+            + (node.atom or [])
+            + (node.expressions or [])
+            + (node.quoted_string or [])
+        )
+        if node.table_element:
+            obj.args.append(node.table_element)
+        if node.standard_function:
+            obj.args.append(node.standard_function)
         return obj
 
 
-class Cast(AstNode):
+class Cast(AliasNode):
     _fields_spec = [
         "type=type_spec",
         "statement=subquery",
@@ -296,71 +311,71 @@ class Cast(AstNode):
     _rules = ["CastCall"]
 
 
-class OverClause(AstNode):
-    _rules = ["over_clause"]
+class OverClause(AliasNode):
     _fields_spec = [
         "partition=query_partition_clause",
         "order_by_clause",
         "windowing_clause",
     ]
+    _rules = ["Over_clause"]
 
 
-class Case(AstNode):
-    _rules = ["simple_case_statement", "searched_case_statement"]  # case_statement
+class Case(AliasNode):
     _fields_spec = [
         "switches=simple_case_when_part",
         "switches=searched_case_when_part",
         "else_expr=case_else_part",
     ]
+    _rules = ["Simple_case_statement", "Searched_case_statement"]  # case_statement
     # 'label' in grammar not correct?
 
 
-class CaseWhen(AstNode):
-    _rules = ["simple_case_when_part", "searched_case_when_part"]
+class CaseWhen(AliasNode):
     _fields_spec = ["when=whenExpr", "then=thenExpr"]
+    _rules = ["Simple_case_when_part", "Searched_case_when_part"]
 
 
-class PartitionBy(AstNode):
+class PartitionBy(AliasNode):
     _fields_spec = ["expression"]
-    _rules = ["query_partition_clause"]
+    _rules = ["Query_partition_clause"]
 
 
-class RenameColumn(AstNode):
+class RenameColumn(AliasNode):
     _fields_spec = ["old_name=old_column_name", "new_name=new_column_name"]
-    _rules = ["rename_column_clause"]
+    _rules = ["Rename_column_clause"]
 
 
-class Column(AstNode):
+class Column(AliasNode):
     _fields_spec = [
         "name=column_name",
         "data_type=datatype",
         "data_type=type_name",
         "constraints=inline_constraint",
     ]
-    _rules = ["column_definition"]
+    _rules = ["Column_definition"]
 
 
-class AddColumns(AstNode):
+class AddColumns(AliasNode):
     _fields_spec = ["columns=column_definition"]
-    _rules = ["add_column_clause"]
+    _rules = ["Add_column_clause"]
 
 
-class DropColumn(AstNode):
+class DropColumn(AliasNode):
     _fields_spec = ["names"]
-    _rules = ["drop_column_clause"]
+    _rules = ["Drop_column_clause"]
 
 
-class AlterColumn(AstNode):
+class AlterColumn(AliasNode):
     _fields_spec = ["name=column_name", "op", "data_type=datatype", "expression"]
-    _rules = ["alter_column_clause"]
+    _rules = ["Alter_column_clause"]
 
 
-class Reference(AstNode):
+class Reference(AliasNode):
     _fields_spec = ["table=tableview_name", "columns=paren_column_list"]
-    _rules = ["references_clause"]
+    _rules = ["References_clause"]
 
 
-class CreateTable(AstNode):
+class CreateTable(AliasNode):
     _fields_spec = [
         "name=tableview_name",
         "temporary=TEMPORARY",
@@ -368,73 +383,74 @@ class CreateTable(AstNode):
         # todo: + syntax (also multiple fields, e.g. constraints)
         "columns=relational_table.relational_properties.column_definition",
     ]
-    _rules = ["create_table"]
+    _rules = ["Create_table"]
 
 
-class AlterTable(AstNode):
+class AlterTable(AliasNode):
     _fields_spec = [
         "name=tableview_name",
         "changes=column_clauses",
         "changes=constraint_clauses",
     ]
-    _rules = ["alter_table"]
+    _rules = ["Alter_table"]
 
 
-class AddConstraints(AstNode):
+class AddConstraints(AliasNode):
     _fields_spec = ["constraints=out_of_line_constraint"]
 
 
-class DropConstraints(AstNode):
+class DropConstraints(AliasNode):
     # TODO: check exercises
     _fields_spec = ["constraints=drop_constraint_clause"]
 
 
-class DropConstraint(AstNode):
+class DropConstraint(AliasNode):
     _fields_spec = ["name=drop_primary_key_or_unique_or_generic_clause"]
-    _rules = ["drop_constraint_clause"]
+    _rules = ["Drop_constraint_clause"]
 
 
-class DropTable(AstNode):
+class DropTable(AliasNode):
     _fields_spec = ["name=tableview_name", "existence_check"]
-    _rules = [("drop_table", "_from_table")]
+    _rules = [("Drop_table", "_from_table")]
 
     @classmethod
-    def _from_table(cls, visitor, ctx):
-        obj = cls._from_fields(visitor, ctx)
+    def _from_table(cls, node):
+        obj = cls.from_spec(node)
 
         # TODO: format? make combined rule and set using _field_spec?
-        if ctx.IF() and ctx.EXISTS():
+        if node.IF and node.EXISTS:
             obj.existence_check = "if_exists"
         return obj
 
 
-class Constraint(AstNode):
+class Constraint(AliasNode):
     _fields_spec = [
         "name=constraint_name",
         "type",
+        "columns=paren_column_list",
         "columns=foreign_key_clause.paren_column_list",
         "reference=foreign_key_clause.references_clause",
     ]
-    _rules = [("out_of_line_constraint", "_from_constraint")]
+    _rules = [("Out_of_line_constraint", "_from_constraint")]
 
     @classmethod
-    def _from_constraint(cls, visitor, ctx):
-        obj = cls._from_fields(visitor, ctx)
+    def _from_constraint(cls, node):
+        obj = cls.from_spec(node)
 
-        foreign_key_ctx = ctx.foreign_key_clause()
-        if ctx.UNIQUE():
+        foreign_key_ctx = node.foreign_key_clause
+        if node.UNIQUE:
             obj.type = "unique"
-        elif ctx.PRIMARY() and ctx.KEY():
+        elif node.PRIMARY and node.KEY:
             # TODO: format? make combined primary_key rule and set using _field_spec?
             obj.type = "primary_key"
-        elif foreign_key_ctx and foreign_key_ctx.FOREIGN() and foreign_key_ctx.KEY():
+        elif foreign_key_ctx and foreign_key_ctx.FOREIGN and foreign_key_ctx.KEY:
             obj.type = "foreign_key"
-        elif ctx.CHECK():
+        elif node.CHECK:
             obj.type = "check"
         return obj
 
 
-class InsertStmt(AstNode):
+class InsertStmt(AliasNode):
     # TODO: use path field spec in more places
     _fields_spec = [
         "table=single_table_insert.insert_into_clause.general_table_ref",
@@ -442,28 +458,28 @@ class InsertStmt(AstNode):
         "values=single_table_insert.values_clause.expression_list",
         "query=single_table_insert.select_statement",
     ]
-    _rules = ["insert_statement"]
+    _rules = ["Insert_statement"]
 
 
-class UpdateStmt(AstNode):
+class UpdateStmt(AliasNode):
     _fields_spec = [
         "table=general_table_ref",
         "where_clause",
         "from_clause",
         "updates=update_set_clause.column_based_update_set_clause",
     ]
-    _rules = ["update_statement"]
+    _rules = ["Update_statement"]
 
 
-class Update(AstNode):
+class Update(AliasNode):
     # TODO: BinExpr? Not fit for multiple columns combined?
     _fields_spec = ["column=column_name", "expression"]
-    _rules = ["column_based_update_set_clause"]
+    _rules = ["Column_based_update_set_clause"]
 
 
-class DeleteStmt(AstNode):
+class DeleteStmt(AliasNode):
     _fields_spec = ["table=general_table_ref", "where_clause"]
-    _rules = ["delete_statement"]
+    _rules = ["Delete_statement"]
 
 
 # class FunctionArgument
@@ -472,114 +488,81 @@ class DeleteStmt(AstNode):
 # PARSE TREE VISITOR ----------------------------------------------------------
 
 
-class AstVisitor(BaseAstVisitor, grammar.Visitor):
-    def visitSubqueryParen(self, ctx):
-        return self.visit(ctx.subquery())
+# todo: remove
+class Transformer:
+    def visit_Relational_operator(self, node):
+        # TODO: cleaner
+        return Terminal(
+            [node.get_text()], {"value": 0}, {}, node._ctx
+        )  # node.children[0]?
 
-    def visitStarTable(self, ctx):
-        identifier = self.visit(ctx.dot_id())
-        identifier.fields += [self.visit(ctx.star())]
+    def visit_SubqueryParen(self, node):
+        # todo: auto-simplify?
+        return node.subquery
+
+    def visit_StarTable(self, node):
+        identifier = node.dot_id
+        identifier.fields += [node.star]
         return identifier
 
     # function calls -------
 
-    def visitFunction_argument_analytic(self, ctx):
-        # future todo: declarative?
-        if not (ctx.respect_or_ignore_nulls() or ctx.keep_clause()):
-            return [self.visit(arg) for arg in ctx.argument()]
+    def visit_Function_argument_analytic(self, node):
+        # future todo: declarative? needed?
+        if not (node.respect_or_ignore_nulls or node.keep_clause):
+            return node.argument
         else:
-            return self.visitChildren(ctx)
+            return node
 
     # def visitIs_part(self, ctx):
     #    return ctx
 
-    def visitConstraint_clauses(self, ctx):
+    def visit_Constraint_clauses(self, node):
         # future todo: declarative?
         # - create grammar rule for each branch
         # - predicate in _rules
-        if ctx.ADD():
-            return AddConstraints._from_fields(self, ctx)
-        if ctx.drop_constraint_clause():
-            return DropConstraints._from_fields(self, ctx)
+        if node.ADD:
+            return AddConstraints.from_spec(node)
+        if node.drop_constraint_clause:
+            return DropConstraints.from_spec(node)
 
     # simple dropping of tokens -----------------------------------------------
     # Note can't filter out TerminalNodeImpl from some currently as in something like
     # "SELECT a FROM b WHERE 1", the 1 will be a terminal node in where_clause
 
-    def visitWhere_clause(self, ctx):
-        return self.visitChildren(ctx, predicate=lambda n: n is not ctx.WHERE())
+    def visit_Where_clause(self, node):
+        return node.current_of_clause or node.expression
 
-    def visitLimit_clause(self, ctx):
-        return self.visitChildren(ctx, predicate=lambda n: n is not ctx.LIMIT())
+    def visit_Limit_clause(self, node):
+        return node.expression
 
-    def visitColumn_alias(self, ctx):
-        return self.visitChildren(ctx, predicate=lambda n: n is not ctx.AS())
+    def visit_Column_alias(self, node):
+        return node.r_id or node.alias_quoted_string
 
-    def visitHaving_clause(self, ctx):
-        return self.visitChildren(ctx, predicate=lambda n: n is not ctx.HAVING())
+    def visit_Having_clause(self, node):
+        return node.condition
 
     # visit single field
     # future todo: list of nodes that detect and parse all fields
     # alternative: visit_fields with manual list
 
-    def visitExpression_list(self, ctx):
-        # these patterns are equivalent:
-        return self.visit_field(ctx, ctx.expression)
-        # return [self.visit(expr) for expr in ctx.expression()]
-        # return self.visitChildren(ctx, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
+    def visit_Expression_list(self, node):
+        return node.expression
 
-    def visitInto_clause(self, ctx):
-        return self.visit_field(ctx, ctx.variable_name)
+    def visit_Into_clause(self, node):
+        return node.variable_name
 
-    def visitDrop_primary_key_or_unique_or_generic_clause(self, ctx):
-        return self.visit_field(ctx, ctx.constraint_name)
-
-    _remove_terminal = [
-        "from_clause",
-        "table_ref_list",
-        "group_by_clause",
-        "join_on_part",
-        "join_using_part",
-        "atom",
-        "ParenExpr",
-        "ParenBinaryExpr",
-        "case_else_part",
-        "table_alias",
-        "subquery_factoring_clause",
-        "dml_table_expression_clause",
-        "function_argument",
-        "argument_list",
-        "paren_column_list",
-        "column_list",
-        "relational_table",
-        "update_set_clause",
-    ]
+    def visit_Drop_primary_key_or_unique_or_generic_clause(self, node):
+        return node.constraint_name
 
 
 # Override visit methods in AstVisitor for all nodes (in _rules) that convert to the AstNode classes
 import inspect
 
 for item in list(globals().values()):
-    if inspect.isclass(item) and issubclass(item, AstNode):
+    if inspect.isclass(item) and issubclass(item, AliasNode):
         if getattr(item, "_rules", None) is not None:
-            item._bind_to_visitor(AstVisitor)
-
-
-def is_terminal(node):
-    """Predicate to detect terminal nodes
-
-    Consider adding a node to the visitor _remove_terminal list.
-    """
-    return not isinstance(node, Tree.TerminalNode)
-
-
-# Override node visiting methods to add terminal child skipping in AstVisitor
-for rule in AstVisitor._remove_terminal:
-    # f = partial(AstVisitor.visitChildren, predicate = lambda n: not isinstance(n, Tree.TerminalNode))
-    def skip_terminal_child_nodes(self, ctx):
-        return self.visitChildren(ctx, predicate=is_terminal)
-
-    bind_to_visitor(AstVisitor, rule, skip_terminal_child_nodes)
+            item.bind_to_transformer(Transformer)
 
 
 # Create Speaker
@@ -589,6 +572,6 @@ speaker = Speaker(**speaker_cfg)
 
 if __name__ == "__main__":
     query = """
-SELECT id FROM artists WHERE id > 100
+SELECT id FROM artists WHERE id IN (SELECT * FROM abc)
     """
     parse(query)
