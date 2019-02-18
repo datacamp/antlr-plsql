@@ -273,7 +273,7 @@ class Call(AliasNode):
             # works only for one such clause
             # TODO: convention for fields where multiple possible
             # >1 (>0): always, mostly, sometimes, exceptionally?
-            for el in within_or_over_part_ctx:
+            for el in cls.extend_node_list([], within_or_over_part_ctx):
                 within_clause_ctx = el.order_by_clause
                 if within_clause_ctx is not None:
                     obj.within_clause = within_clause_ctx
