@@ -38,8 +38,8 @@ class Script(AliasNode):
     @classmethod
     def _from_sql_script(cls, node):
         obj = cls.from_spec(node)
-        obj.body = (
-            node.unit_statement + node.sql_plus_command
+        obj.body = cls.combine(
+            node.unit_statement, node.sql_plus_command
         )  # todo: how does unit_statement get dml prop: transformer sets it (content of list fields is replaced)
         return obj
 
@@ -287,16 +287,14 @@ class Call(AliasNode):
     def _from_str_func(cls, node):
         obj = cls.from_spec(node)
         # todo: is field list if it is list in one (other) alternative?
-        obj.args = (
-            (node.expression or [])
-            + (node.atom or [])
-            + (node.expressions or [])
-            + (node.quoted_string or [])
+        obj.args = cls.combine(
+            node.expression,
+            node.atom,
+            node.expressions,
+            node.quoted_string,
+            node.table_element,
+            node.standard_function,
         )
-        if node.table_element:
-            obj.args.append(node.table_element)
-        if node.standard_function:
-            obj.args.append(node.standard_function)
         return obj
 
 
@@ -502,7 +500,7 @@ class Transformer:
 
     def visit_StarTable(self, node):
         identifier = node.dot_id
-        identifier.fields += [node.star]
+        identifier.fields += [node.star]  # todo
         return identifier
 
     # function calls -------
