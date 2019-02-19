@@ -251,12 +251,7 @@ class Call(AliasNode):
     @classmethod
     def _from_aggregate_call(cls, node):
         obj = cls.from_spec(node)
-        # TODO: get_text (terminal not only in debug?)
-        name = node.children[0]
-        # TODO: (case) needed?
-        if not isinstance(name, str):
-            name = name._ctx.getText().lower()
-        obj.name = name
+        obj.name = node.children[0]
 
         if obj.args is None:
             obj.args = []
