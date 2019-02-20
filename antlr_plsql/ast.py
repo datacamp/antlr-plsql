@@ -535,6 +535,9 @@ class Transformer:
     def visit_Having_clause(self, node):
         return node.condition
 
+    def visit_From_clause(self, node):
+        return node.table_ref
+
     # visit single field
     # future todo: list of nodes that detect and parse all fields
     # alternative: visit_fields with manual list
