@@ -1,12 +1,12 @@
 import yaml
 import pkg_resources
+import inspect
 
 from antlr_ast.ast import (
     parse as parse_ast,
-    Speaker,
-    BaseAstVisitor,
-    AliasVisitor,
+    process_tree,
     AliasNode,
+    Speaker,
     # references for export:
     Terminal,
     AntlrException as ParseError,
@@ -20,11 +20,10 @@ from . import grammar
 
 
 def parse(sql_text, start="sql_script", **kwargs):
-    tree = parse_ast(grammar, sql_text, start, **kwargs)
-    field_tree = BaseAstVisitor().visit(tree)
-    alias_tree = AliasVisitor(Transformer()).visit(field_tree)
+    antlr_tree = parse_ast(grammar, sql_text, start, **kwargs)
+    simple_tree = process_tree(antlr_tree, Transformer)
 
-    return alias_tree
+    return simple_tree
 
 
 # AliasNodes
@@ -37,11 +36,11 @@ class Script(AliasNode):
 
     @classmethod
     def _from_sql_script(cls, node):
-        obj = cls.from_spec(node)
-        obj.body = cls.combine(
+        alias = cls.from_spec(node)
+        alias.body = cls.combine(
             node.unit_statement, node.sql_plus_command
         )  # todo: how does unit_statement get dml prop: transformer sets it (content of list fields is replaced)
-        return obj
+        return alias
 
 
 class SelectStmt(AliasNode):
@@ -153,11 +152,11 @@ class AliasExpr(AliasNode):
 
     @classmethod
     def _unpack_alias(cls, node):
-        obj = cls.from_spec(node)
-        if obj.alias is not None:
-            return obj
+        alias = cls.from_spec(node)
+        if alias.alias is not None:
+            return alias
         else:
-            return obj.expr
+            return alias.expr  # TODO: occurrence?
 
 
 class BinaryExpr(AliasNode):
@@ -178,9 +177,8 @@ class BinaryExpr(AliasNode):
     @classmethod
     def _from_mod(cls, node):
         bin_expr = cls.from_spec(node)
-        ctx_not = node.NOT
-        if ctx_not:
-            return UnaryExpr(node, {"op": ctx_not, "expr": bin_expr})
+        if node.NOT:
+            return UnaryExpr(node, {"op": node.NOT, "expr": bin_expr})
 
         return bin_expr
 
@@ -250,39 +248,39 @@ class Call(AliasNode):
 
     @classmethod
     def _from_aggregate_call(cls, node):
-        obj = cls.from_spec(node)
-        obj.name = node.children[0]
+        alias = cls.from_spec(node)
+        alias.name = node.children[0]
 
-        if obj.args is None:
-            obj.args = []
-        elif not isinstance(obj.args, Sequence):
-            obj.args = [obj.args]
-        return obj
+        if alias.args is None:
+            alias.args = []
+        elif not isinstance(alias.args, Sequence):
+            alias.args = [alias.args]
+        return alias
 
     @classmethod
     def _from_within(cls, node):
-        obj = cls.from_spec(node)
+        alias = cls.from_spec(node)
 
-        within_or_over_part_ctx = node.within_or_over_part
-        if within_or_over_part_ctx is not None:
+        within_or_over_part = node.within_or_over_part
+        if within_or_over_part is not None:
             # works only for one such clause
             # TODO: convention for fields where multiple possible
             # >1 (>0): always, mostly, sometimes, exceptionally?
-            for el in cls.extend_node_list([], within_or_over_part_ctx):
-                within_clause_ctx = el.order_by_clause
-                if within_clause_ctx is not None:
-                    obj.within_clause = within_clause_ctx
-                over_clause_ctx = el.over_clause
-                if over_clause_ctx is not None:
-                    obj.over_clause = over_clause_ctx
+            for el in cls.extend_node_list([], within_or_over_part):
+                within_clause = el.order_by_clause
+                if within_clause is not None:
+                    alias.within_clause = within_clause
+                over_clause = el.over_clause
+                if over_clause is not None:
+                    alias.over_clause = over_clause
 
-        return obj
+        return alias
 
     @classmethod
     def _from_str_func(cls, node):
-        obj = cls.from_spec(node)
+        alias = cls.from_spec(node)
         # todo: is field list if it is list in one (other) alternative?
-        obj.args = cls.combine(
+        alias.args = cls.combine(
             node.expression,
             node.atom,
             node.expressions,
@@ -290,7 +288,7 @@ class Call(AliasNode):
             node.table_element,
             node.standard_function,
         )
-        return obj
+        return alias
 
 
 class Cast(AliasNode):
@@ -408,12 +406,12 @@ class DropTable(AliasNode):
 
     @classmethod
     def _from_table(cls, node):
-        obj = cls.from_spec(node)
+        alias = cls.from_spec(node)
 
         # TODO: format? make combined rule and set using _field_spec?
         if node.IF and node.EXISTS:
-            obj.existence_check = "if_exists"
-        return obj
+            alias.existence_check = "if_exists"
+        return alias
 
 
 class Constraint(AliasNode):
@@ -428,19 +426,19 @@ class Constraint(AliasNode):
 
     @classmethod
     def _from_constraint(cls, node):
-        obj = cls.from_spec(node)
+        alias = cls.from_spec(node)
 
-        foreign_key_ctx = node.foreign_key_clause
+        foreign_key_clause = node.foreign_key_clause
         if node.UNIQUE:
-            obj.type = "unique"
+            alias.type = "unique"
         elif node.PRIMARY and node.KEY:
             # TODO: format? make combined primary_key rule and set using _field_spec?
-            obj.type = "primary_key"
-        elif foreign_key_ctx and foreign_key_ctx.FOREIGN and foreign_key_ctx.KEY:
-            obj.type = "foreign_key"
+            alias.type = "primary_key"
+        elif foreign_key_clause and foreign_key_clause.FOREIGN and foreign_key_clause.KEY:
+            alias.type = "foreign_key"
         elif node.CHECK:
-            obj.type = "check"
-        return obj
+            alias.type = "check"
+        return alias
 
 
 class InsertStmt(AliasNode):
@@ -481,7 +479,6 @@ class DeleteStmt(AliasNode):
 # PARSE TREE VISITOR ----------------------------------------------------------
 
 
-# todo: remove
 class Transformer:
     def visit_Relational_operator(self, node):
         # TODO: cleaner
@@ -552,8 +549,7 @@ class Transformer:
         return node.constraint_name
 
 
-# Override visit methods in AstVisitor for all nodes (in _rules) that convert to the AstNode classes
-import inspect
+# Add visit methods to Transformer for all nodes (in _rules) that convert to AliasNode instances
 
 for item in list(globals().values()):
     if inspect.isclass(item) and issubclass(item, AliasNode):
@@ -568,6 +564,6 @@ speaker = Speaker(**speaker_cfg)
 
 if __name__ == "__main__":
     query = """
-SELECT id FROM artists WHERE id IN (SELECT * FROM abc)
+SELECT id FROM artists WHERE id > 100
     """
     parse(query)
