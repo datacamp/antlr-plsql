@@ -26,7 +26,8 @@ def test_unparsed_to_text():
 def test_ast_dump():
     sql_txt = "SELECT a, b FROM x WHERE a < 10"
     tree = ast.parse(sql_txt)
-    tree._dump()
+    ast.dump_node(tree)
+    # TODO test .to_json()
 
 
 @pytest.mark.parametrize(
@@ -41,12 +42,15 @@ def test_ast_dump():
 )
 def test_ast_dumps_noerr(sql_text, start):
     tree = ast.parse(sql_text, start)
-    d = tree._dumps()
+    import json
+    d = json.dumps(ast.dump_node(tree))
+    # TODO test .to_json()
 
 
 def test_ast_dumps_unary():
     tree = ast.parse("-1", "unary_expression")
-    assert tree._dump() == {"type": "UnaryExpr", "data": {"expr": "1", "op": "-"}}
+    assert ast.dump_node(tree) == {"type": "UnaryExpr", "data": {"expr": "1", "op": "-"}}
+    # TODO test .to_json()
 
 
 def test_select_fields_shaped():
@@ -60,7 +64,7 @@ def test_select_fields_shaped():
     """,
         "subquery",
     )
-    for field in select._get_field_names():
+    for field in select._fields:
         assert not isinstance(getattr(select, field), ast.Unshaped)
 
 
