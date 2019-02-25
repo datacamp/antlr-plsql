@@ -7,9 +7,11 @@ from antlr_ast.ast import (
     process_tree,
     AliasNode,
     Speaker,
-    # references for export:
+    # references for export:  # TODO: put package exports in __init__?
     Terminal,
+    BaseNode as AstNode,
     AntlrException as ParseError,
+    dump_node,  # TODO only used in tests
 )
 
 from . import grammar

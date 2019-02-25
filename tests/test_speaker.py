@@ -46,5 +46,5 @@ def test_print_speaker(code, start):
     # node printout
     print(speaker.describe(tree))
     # fields
-    for field_name in tree._get_field_names():
+    for field_name in tree._fields:
         print(speaker.describe(tree, field = field_name, fmt = "The {field_name} of the {node_name}"))
