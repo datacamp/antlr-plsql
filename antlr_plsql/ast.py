@@ -95,7 +95,7 @@ class SelectStmt(AliasNode):
         if select.query_block:
             select = select.query_block
 
-        with_clause = node.subquery_factoring_clause.factoring_element
+        with_clause = node.subquery_factoring_clause
         if with_clause:
             select.with_clause = with_clause
 
