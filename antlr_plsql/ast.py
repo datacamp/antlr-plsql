@@ -97,7 +97,7 @@ class SelectStmt(AliasNode):
 
         with_clause = node.subquery_factoring_clause
         if with_clause:
-            select.with_clause = with_clause
+            select.with_clause = with_clause.factoring_element
 
         if not type(select).__name__ == "SubqueryCompound":
             select = cls.from_spec(select)
