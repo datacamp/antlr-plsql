@@ -238,10 +238,10 @@ class Call(AliasNode):
         "name=dot_id",
         "pref",
         "args",
+        "args=concatenation",
         "args=function_argument.argument",
         "args=function_argument_analytic",
         "component=regular_id",
-        "expr=concatenation",
         "within_clause",
         "over_clause",
     ]
