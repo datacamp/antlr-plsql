@@ -504,7 +504,7 @@ references_clause
     ;
 
 paren_column_list
-    : LEFT_PAREN column_list RIGHT_PAREN
+    : '(' column_list ')'
     // todo: from column_name_list
     // : '(' column_name (',' column_name)* ')'
     ;

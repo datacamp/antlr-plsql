@@ -95,7 +95,7 @@ class SelectStmt(AliasNode):
         if select.query_block:
             select = select.query_block
 
-        with_clause = node.subquery_factoring_clause
+        with_clause = node.subquery_factoring_clause.factoring_element
         if with_clause:
             select.with_clause = with_clause
 
@@ -115,11 +115,11 @@ class Union(AliasNode):
         # since the final ORDER BY applies to the entire statement (not just subquery)
         union = cls.from_spec(node)
 
-        order_by = getattr(union.right, "order_by_clause", None)
+        order_by = getattr(union.right.query_block, "order_by_clause", None)
         union.order_by_clause = order_by
         # remove from right SELECT
         if order_by:
-            union.right.order_by_clause = None
+            union.right.query_block.order_by_clause = None
 
         return union
 
@@ -206,6 +206,11 @@ class OrderByExpr(AliasNode):
     _rules = ["Order_by_clause"]
 
 
+class GroupBy(AliasNode):
+    _fields_spec = ["expr=group_by_elements"]
+    _rules = ["Group_by_clause"]
+
+
 class SortBy(AliasNode):
     _fields_spec = ["expr=expression", "direction", "nulls"]
     _rules = ["Order_by_elements"]
@@ -216,7 +221,7 @@ class JoinExpr(AliasNode):
         "left=table_ref",
         "join_type=join_clause.join_type",
         "right=join_clause.table_ref",
-        "cond=join_clause.join_on_part",
+        "cond=join_clause.join_on_part.condition",
         # fields below are Oracle specific
         "using=join_clause.join_using_part",
         "query_partition_clause=join_clause.query_partition_clause",
@@ -233,7 +238,7 @@ class Call(AliasNode):
         "name=dot_id",
         "pref",
         "args",
-        "args=function_argument",
+        "args=function_argument.argument",
         "args=function_argument_analytic",
         "component=regular_id",
         "expr=concatenation",
@@ -537,6 +542,12 @@ class Transformer:
     def visit_From_clause(self, node):
         return node.table_ref
 
+    def visit_Case_else_part(self, node):
+        return node.seq_of_statements or node.expression
+
+    def visit_Table_alias(self, node):
+        return node.r_id or node.alias_quoted_string
+
     # visit single field
     # future todo: list of nodes that detect and parse all fields
     # alternative: visit_fields with manual list
@@ -549,6 +560,31 @@ class Transformer:
 
     def visit_Drop_primary_key_or_unique_or_generic_clause(self, node):
         return node.constraint_name
+
+
+# TODO
+# remove_terminal = [
+#     # "from_clause",
+#     "table_ref_list",  # ?
+#     # "group_by_clause",
+#     # "join_on_part",
+#     # "join_using_part",
+#     # "atom",  # simplify_tree
+#     # "ParenExpr",  # simplify_tree
+#     # "ParenBinaryExpr",  # simplify_tree
+#     # "case_else_part",
+#     # "table_alias",
+#     # "subquery_factoring_clause",
+#     # "dml_table_expression_clause",
+#     # "function_argument",
+#     # "argument_list",
+#     # "paren_column_list",  # simplify_tree
+#     # "column_list",  # simplify_tree
+#     # "relational_table",
+#     # "relational_properties",
+#     # "column_name_list",  # refactored in grammar
+#     # "update_set_clause",
+# ]
 
 
 # Add visit methods to Transformer for all nodes (in _rules) that convert to AliasNode instances
@@ -566,6 +602,17 @@ speaker = Speaker(**speaker_cfg)
 
 if __name__ == "__main__":
     query = """
-SELECT id FROM artists WHERE id > 100
+-- pick specified columns from 2010 table
+SELECT *
+-- 2010 table will be on top
+FROM economies2010
+-- which set theory clause?
+UNION
+-- pick specified columns from 2015 table
+SELECT *
+-- 2015 table on the bottom
+FROM economies2015
+-- order accordingly
+ORDER BY code, year;
     """
     parse(query)
