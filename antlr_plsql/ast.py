@@ -6,6 +6,7 @@ from antlr_ast.ast import (
     parse as parse_ast,
     process_tree,
     AliasNode,
+    BaseTransformer,
     Speaker,
     # references for export:  # TODO: put package exports in __init__?
     Terminal,
@@ -486,7 +487,7 @@ class DeleteStmt(AliasNode):
 # PARSE TREE VISITOR ----------------------------------------------------------
 
 
-class Transformer:
+class Transformer(BaseTransformer):
     def visit_Relational_operator(self, node):
         # TODO: cleaner
         return Terminal(
