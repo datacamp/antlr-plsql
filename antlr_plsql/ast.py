@@ -84,11 +84,11 @@ class SelectStmt(AliasNode):
         return query
 
     @classmethod
-    def _from_select(cls, node):
+    def _from_select(cls, node, helper):
         select = node.subquery
 
         # todo: rule alias (type) check helper (check isinstance BaseClass + name of subtype)
-        while type(select).__name__ == "SubqueryParen":
+        while helper.isinstance(select, "SubqueryParen"):
             # unpack brackets recursively
             select = select.subquery
 
@@ -100,7 +100,7 @@ class SelectStmt(AliasNode):
         if with_clause:
             select.with_clause = with_clause.factoring_element
 
-        if not type(select).__name__ == "SubqueryCompound":
+        if not helper.isinstance(select, "SubqueryCompound"):
             select = cls.from_spec(select)
 
         return select
@@ -190,7 +190,7 @@ class BinaryExpr(AliasNode):
         # NOT IN produces unary expression
         bin_or_unary = cls._from_mod(node)
         right = node.subquery or node.expression_list
-        if isinstance(bin_or_unary, UnaryExpr):
+        if isinstance(bin_or_unary, UnaryExpr):  # TODO
             bin_or_unary.expr.right = right
         else:
             bin_or_unary.right = right
