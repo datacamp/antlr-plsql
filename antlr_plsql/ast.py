@@ -199,7 +199,7 @@ class BinaryExpr(AliasNode):
 
 
 class UnaryExpr(AliasNode):
-    _fields_spec = ["op", "expr=unary_expression"]
+    _fields_spec = ["op", "expr", "expr=unary_expression"]
     _rules = ["UnaryExpr", "CursorExpr", "NotExpr"]
 
 
@@ -258,7 +258,8 @@ class Call(AliasNode):
     @classmethod
     def _from_aggregate_call(cls, node):
         alias = cls.from_spec(node)
-        alias.name = node.children[0]
+        name = node.children[0]
+        alias.name = (name if isinstance(name, str) else name.get_text()).upper()
 
         if alias.args is None:
             alias.args = []
