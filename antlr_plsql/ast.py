@@ -5,8 +5,10 @@ import inspect
 from antlr_ast.ast import (
     parse as parse_ast,
     process_tree,
+    BaseAstVisitor,
     AliasNode,
-    BaseTransformer,
+    BaseNodeTransformer,
+    get_alias_nodes,
     Speaker,
     # references for export:  # TODO: put package exports in __init__?
     Terminal,
@@ -24,7 +26,7 @@ from . import grammar
 
 def parse(sql_text, start="sql_script", **kwargs):
     antlr_tree = parse_ast(grammar, sql_text, start, **kwargs)
-    simple_tree = process_tree(antlr_tree, Transformer)
+    simple_tree = process_tree(antlr_tree, base_visitor_cls=AstVisitor, transformer_cls=Transformer)
 
     return simple_tree
 
@@ -87,7 +89,6 @@ class SelectStmt(AliasNode):
     def _from_select(cls, node, helper):
         select = node.subquery
 
-        # todo: rule alias (type) check helper (check isinstance BaseClass + name of subtype)
         while helper.isinstance(select, "SubqueryParen"):
             # unpack brackets recursively
             select = select.subquery
@@ -190,7 +191,7 @@ class BinaryExpr(AliasNode):
         # NOT IN produces unary expression
         bin_or_unary = cls._from_mod(node)
         right = node.subquery or node.expression_list
-        if isinstance(bin_or_unary, UnaryExpr):  # TODO
+        if isinstance(bin_or_unary, UnaryExpr):
             bin_or_unary.expr.right = right
         else:
             bin_or_unary.right = right
@@ -487,25 +488,24 @@ class DeleteStmt(AliasNode):
 # PARSE TREE VISITOR ----------------------------------------------------------
 
 
-class Transformer(BaseTransformer):
-    def visit_Relational_operator(self, node):
-        # TODO: cleaner
-        return Terminal(
-            [node.get_text()], {"value": 0}, {}, node._ctx
-        )  # node.children[0]?
+class Transformer(BaseNodeTransformer):
+    @staticmethod
+    def visit_Relational_operator(node):
+        return Terminal.from_text(node.get_text(), node._ctx)  # node.children[0]?
 
-    def visit_SubqueryParen(self, node):
+    @staticmethod
+    def visit_SubqueryParen(node):
         # todo: auto-simplify?
         return node.subquery
 
-    def visit_StarTable(self, node):
+    @staticmethod
+    def visit_StarTable(node):
         identifier = node.dot_id
         identifier.fields += [node.star]  # todo
         return identifier
 
-    # function calls -------
-
-    def visit_Function_argument_analytic(self, node):
+    @staticmethod
+    def visit_Function_argument_analytic(node):
         # future todo: declarative? needed?
         if not (node.respect_or_ignore_nulls or node.keep_clause):
             return node.argument
@@ -515,7 +515,8 @@ class Transformer(BaseTransformer):
     # def visitIs_part(self, ctx):
     #    return ctx
 
-    def visit_Constraint_clauses(self, node):
+    @staticmethod
+    def visit_Constraint_clauses(node):
         # future todo: declarative?
         # - create grammar rule for each branch
         # - predicate in _rules
@@ -524,76 +525,55 @@ class Transformer(BaseTransformer):
         if node.drop_constraint_clause:
             return DropConstraints.from_spec(node)
 
-    # simple dropping of tokens -----------------------------------------------
-    # Note can't filter out TerminalNodeImpl from some currently as in something like
-    # "SELECT a FROM b WHERE 1", the 1 will be a terminal node in where_clause
-
-    def visit_Where_clause(self, node):
+    @staticmethod
+    def visit_Where_clause(node):
         return node.current_of_clause or node.expression
 
-    def visit_Limit_clause(self, node):
+    @staticmethod
+    def visit_Limit_clause(node):
         return node.expression
 
-    def visit_Column_alias(self, node):
+    @staticmethod
+    def visit_Column_alias(node):
         return node.r_id or node.alias_quoted_string
 
-    def visit_Having_clause(self, node):
+    @staticmethod
+    def visit_Having_clause(node):
         return node.condition
 
-    def visit_From_clause(self, node):
+    @staticmethod
+    def visit_From_clause(node):
         return node.table_ref
 
-    def visit_Case_else_part(self, node):
+    @staticmethod
+    def visit_Case_else_part(node):
         return node.seq_of_statements or node.expression
 
-    def visit_Table_alias(self, node):
+    @staticmethod
+    def visit_Table_alias(node):
         return node.r_id or node.alias_quoted_string
 
-    # visit single field
-    # future todo: list of nodes that detect and parse all fields
-    # alternative: visit_fields with manual list
-
-    def visit_Expression_list(self, node):
+    @staticmethod
+    def visit_Expression_list(node):
         return node.expression
 
-    def visit_Into_clause(self, node):
+    @staticmethod
+    def visit_Into_clause(node):
         return node.variable_name
 
-    def visit_Drop_primary_key_or_unique_or_generic_clause(self, node):
+    @staticmethod
+    def visit_Drop_primary_key_or_unique_or_generic_clause(node):
         return node.constraint_name
 
 
-# TODO
-# remove_terminal = [
-#     # "from_clause",
-#     "table_ref_list",  # ?
-#     # "group_by_clause",
-#     # "join_on_part",
-#     # "join_using_part",
-#     # "atom",  # simplify_tree
-#     # "ParenExpr",  # simplify_tree
-#     # "ParenBinaryExpr",  # simplify_tree
-#     # "case_else_part",
-#     # "table_alias",
-#     # "subquery_factoring_clause",
-#     # "dml_table_expression_clause",
-#     # "function_argument",
-#     # "argument_list",
-#     # "paren_column_list",  # simplify_tree
-#     # "column_list",  # simplify_tree
-#     # "relational_table",
-#     # "relational_properties",
-#     # "column_name_list",  # refactored in grammar
-#     # "update_set_clause",
-# ]
+# TODO: port from remove_terminal:
+#  - table_ref_list
 
 
 # Add visit methods to Transformer for all nodes (in _rules) that convert to AliasNode instances
 
-for item in list(globals().values()):
-    if inspect.isclass(item) and issubclass(item, AliasNode):
-        if getattr(item, "_rules", None) is not None:
-            item.bind_to_transformer(Transformer)
+alias_nodes = get_alias_nodes(globals().values())
+Transformer.bind_alias_nodes(alias_nodes)
 
 
 # Create Speaker
@@ -601,19 +581,19 @@ for item in list(globals().values()):
 speaker_cfg = yaml.load(pkg_resources.resource_stream("antlr_plsql", "speaker.yml"))
 speaker = Speaker(**speaker_cfg)
 
+
+class AstVisitor(BaseAstVisitor):
+    def visitTerminal(self, ctx):
+        """Converts case insensitive keywords and identifiers to lowercase"""
+        text = str(super().visitTerminal(ctx))
+        quotes = ["'", '"']
+        if not (text[0] in quotes and text[-1] in quotes):
+            text = text.lower()
+        return Terminal.from_text(text, ctx)
+
+
 if __name__ == "__main__":
     query = """
--- pick specified columns from 2010 table
-SELECT *
--- 2010 table will be on top
-FROM economies2010
--- which set theory clause?
-UNION
--- pick specified columns from 2015 table
-SELECT *
--- 2015 table on the bottom
-FROM economies2015
--- order accordingly
-ORDER BY code, year;
+SELECT id FROM artists WHERE id > 100
     """
     parse(query)
