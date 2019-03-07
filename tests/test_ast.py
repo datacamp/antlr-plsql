@@ -20,7 +20,7 @@ def test_unparsed_to_text():
     assert isinstance(cursor, ast.UnaryExpr)
     # TODO: update Unshaped test
     assert cursor.get_text(sql_txt) == "CURSOR (SELECT a FROM b)"
-    assert cursor.expr.get_text(sql_txt) == "(SELECT a FROM b)"
+    assert cursor.expr.get_text(sql_txt) == "SELECT a FROM b"
 
 
 def test_ast_dump():
@@ -43,13 +43,17 @@ def test_ast_dump():
 def test_ast_dumps_noerr(sql_text, start):
     tree = ast.parse(sql_text, start)
     import json
+
     d = json.dumps(ast.dump_node(tree))
     # TODO test .to_json()
 
 
 def test_ast_dumps_unary():
     tree = ast.parse("-1", "unary_expression")
-    assert ast.dump_node(tree) == {"type": "UnaryExpr", "data": {"expr": "1", "op": "-"}}
+    assert ast.dump_node(tree) == {
+        "type": "UnaryExpr",
+        "data": {"expr": "1", "op": "-"},
+    }
     # TODO test .to_json()
 
 
@@ -160,9 +164,11 @@ def test_ast_examples_parse(fname):
     ],
 )
 def case_insensitivity(stu):
-    start = 'sql_script'
+    start = "sql_script"
     lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
-    assert repr(ast.parse(lowercase, start, strict=True)) == repr(ast.parse(stu, start, strict=True))
+    assert repr(ast.parse(lowercase, start, strict=True)) == repr(
+        ast.parse(stu, start, strict=True)
+    )
 
 
 @pytest.mark.parametrize(
@@ -175,6 +181,8 @@ def case_insensitivity(stu):
     ],
 )
 def case_sensitivity(stu):
-    start = 'sql_script'
+    start = "sql_script"
     lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
-    assert repr(ast.parse(lowercase, start, strict=True)) != repr(ast.parse(stu, start, strict=True))
+    assert repr(ast.parse(lowercase, start, strict=True)) != repr(
+        ast.parse(stu, start, strict=True)
+    )
