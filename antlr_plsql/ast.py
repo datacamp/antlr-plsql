@@ -26,7 +26,9 @@ from . import grammar
 
 def parse(sql_text, start="sql_script", **kwargs):
     antlr_tree = parse_ast(grammar, sql_text, start, **kwargs)
-    simple_tree = process_tree(antlr_tree, base_visitor_cls=AstVisitor, transformer_cls=Transformer)
+    simple_tree = process_tree(
+        antlr_tree, base_visitor_cls=AstVisitor, transformer_cls=Transformer
+    )
 
     return simple_tree
 
@@ -444,7 +446,9 @@ class Constraint(AliasNode):
         elif node.PRIMARY and node.KEY:
             # TODO: format? make combined primary_key rule and set using _field_spec?
             alias.type = "primary_key"
-        elif foreign_key_clause and foreign_key_clause.FOREIGN and foreign_key_clause.KEY:
+        elif (
+            foreign_key_clause and foreign_key_clause.FOREIGN and foreign_key_clause.KEY
+        ):
             alias.type = "foreign_key"
         elif node.CHECK:
             alias.type = "check"
