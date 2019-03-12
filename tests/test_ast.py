@@ -19,7 +19,7 @@ def test_unparsed_to_text():
 
     assert isinstance(cursor, ast.UnaryExpr)
     assert cursor.get_text(sql_txt) == "CURSOR (SELECT a FROM b)"
-    assert cursor.expr.get_text(sql_txt) == "(SELECT a FROM b)"
+    assert cursor.expr.get_text(sql_txt) == "SELECT a FROM b"
 
 
 def test_ast_dump():
