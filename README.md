@@ -10,22 +10,15 @@ ANTLR requires Java, so we suggest you use Docker when building grammars. The `M
 ### Build the grammar
 
 ```bash
-docker build -t antlr_plsql .
-docker run -it -v ${PWD}:/usr/src/app antlr_plsql make build
-```
-
-### Develop
-
-ANTLR requires Java, so we suggest you use Docker when building grammars. The `Makefile` contains directives to clean, build, test and deploy the ANTLR grammar. It does not run Docker itself, so run `make` inside Docker.
-
-```bash
 # Build the docker container
 docker build -t antlr_plsql .
 
-# Run the container to build the python and js grammars
+# Run the container to build the python grammar
 # Write parser files to local file system through volume mounting
 docker run -it -v ${PWD}:/usr/src/app antlr_plsql make build
 ```
+
+### Set up the Python module
 
 Now that the Python parsing files are available, you can install them with `pip`:
 
@@ -40,6 +33,8 @@ And parse SQL code in Python:
 from antlr_plsql import ast
 ast.parse("SELECT a from b")
 ```
+
+### Using the AST viewer
 
 If you're actively developing on the ANLTR grammar or the tree shaping, it's a good idea to set up the [AST viewer](https://github.com/datacamp/ast-viewer) locally so you can immediately see the impact of your changes in a visual way.
 
@@ -77,9 +72,17 @@ docker run -it \
 - If you update the tree shaping logic in this repo, the app will auto-update.
 - If you change the grammar, you will have to first rebuild the grammar (with the `antlr_plsql` docker image) and restart the `ast-viewer` container.
 
+### Run tests
+
+```bash
+# Similar to building the grammar, but running tests
+# and not saving the generated files
+docker build -t antlr_plsql .
+docker run -t antlr_tsql make build test
+```
+
 ## Travis deployment
 
-- Builds the Docker image
-- Runs the Docker image to build the grammar, run the unit tests
-- Commits the generated grammar files to the `builds` (for `master`) and `builds-dev` (for `dev`) branches.
-- Builds the grammar and deploys the resulting python and js files to PyPi when a new release is made.
+- Builds the Docker image.
+- Runs the Docker image to build the grammar and run the unit tests.
+- Deploys the resulting python files to PyPi when a new release is made, so they can be installed easily.
