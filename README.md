@@ -78,7 +78,13 @@ docker run -it \
 # Similar to building the grammar, but running tests
 # and not saving the generated files
 docker build -t antlr_plsql .
-docker run -t antlr_tsql make build test
+docker run -t antlr_plsql make build test
+```
+
+Or run the test locally, first build the grammar then run:
+
+```python
+pytest
 ```
 
 ## Travis deployment
