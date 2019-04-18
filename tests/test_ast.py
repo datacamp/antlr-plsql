@@ -162,11 +162,10 @@ def test_ast_examples_parse(fname):
         "select \"Preserve\" from b WHERE b.name = 'Casing'",
     ],
 )
-def case_insensitivity(stu):
-    start = "sql_script"
+def test_case_insensitivity(stu):
     lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
-    assert repr(ast.parse(lowercase, start, strict=True)) == repr(
-        ast.parse(stu, start, strict=True)
+    assert repr(ast.parse(lowercase, strict=True)) == repr(
+        ast.parse(stu, strict=True)
     )
 
 
@@ -179,9 +178,8 @@ def case_insensitivity(stu):
         "select \"PRESERVE\" FROM B WHERE B.NAME = 'Casing'",
     ],
 )
-def case_sensitivity(stu):
-    start = "sql_script"
+def test_case_sensitivity(stu):
     lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
-    assert repr(ast.parse(lowercase, start, strict=True)) != repr(
-        ast.parse(stu, start, strict=True)
+    assert repr(ast.parse(lowercase, strict=True)) != repr(
+        ast.parse(stu, strict=True)
     )
