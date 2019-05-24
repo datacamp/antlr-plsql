@@ -583,7 +583,7 @@ Transformer.bind_alias_nodes(alias_nodes)
 
 # Create Speaker
 
-speaker_cfg = yaml.load(pkg_resources.resource_stream("antlr_plsql", "speaker.yml"))
+speaker_cfg = yaml.safe_load(pkg_resources.resource_stream("antlr_plsql", "speaker.yml"))
 speaker = Speaker(**speaker_cfg)
 
 

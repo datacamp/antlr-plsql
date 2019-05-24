@@ -30,7 +30,7 @@ def load_dump(fname):
     import yaml
 
     dirname = os.path.dirname(__file__)
-    dump_data = yaml.load(open(dirname + "/" + fname))
+    dump_data = yaml.safe_load(open(dirname + "/" + fname))
 
     all_cmds = []
     for start, cmds in dump_data.items():

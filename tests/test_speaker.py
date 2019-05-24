@@ -49,7 +49,7 @@ def test_call_name(speaker):
     ],
 )
 def test_print_speaker(code, start):
-    speaker = Speaker(**yaml.load(open("antlr_plsql/speaker.yml")))
+    speaker = Speaker(**yaml.safe_load(open("antlr_plsql/speaker.yml")))
 
     tree = ast.parse(code, start=start)
 
