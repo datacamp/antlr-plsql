@@ -2538,7 +2538,7 @@ standard_function
     | COLLECT '(' (DISTINCT | UNIQUE)? concatenation collect_order_by_part? ')'                                 #TodoCall
     | name=within_or_over_clause_keyword function_argument within_or_over_part+                                 #WithinOrOverCall
     | DECOMPOSE '(' concatenation (CANONICAL | COMPATIBILITY)? ')'                                              #TodoCall
-    | name=EXTRACT '(' regular_id FROM concatenation ')'                                                        #ExtractCall
+    | name=EXTRACT '(' (regular_id | expression) FROM concatenation ')'                                         #ExtractCall
     | (FIRST_VALUE | LAST_VALUE) function_argument_analytic respect_or_ignore_nulls? over_clause                #TodoCall
     | standard_prediction_function_keyword
       '(' expression (',' expression)* cost_matrix_clause? using_clause? ')'                                    #TodoCall
