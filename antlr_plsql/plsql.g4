@@ -2406,6 +2406,7 @@ binary_expression
     | left=binary_expression op=('*' | '/' | '%') right=binary_expression            # BinaryExpr
     | left=binary_expression op=('+' | '-') right=binary_expression            # BinaryExpr
     | left=binary_expression op=CONCATENATION_OP right=binary_expression       # BinaryExpr
+    | left=binary_expression op='@@' right=binary_expression                   # BinaryExpr
     | '(' binary_expression ')'                                                # ParenBinaryExpr
     | unary_expression                                                         # IgnoreBinaryExpr
     ;
@@ -2541,6 +2542,7 @@ standard_function
     | (FIRST_VALUE | LAST_VALUE) function_argument_analytic respect_or_ignore_nulls? over_clause                #TodoCall
     | standard_prediction_function_keyword
       '(' expression (',' expression)* cost_matrix_clause? using_clause? ')'                                    #TodoCall
+    | POSITION '(' expression IN expression ')'                                                                 #TodoCall
     | TRANSLATE '(' expression (USING (CHAR_CS | NCHAR_CS))? (',' expression)* ')'                              #TodoCall
     | TREAT '(' expression AS REF? type_spec ')'                                                                #TodoCall
     | TRIM '(' ((LEADING | TRAILING | BOTH)? quoted_string? FROM)? concatenation ')'                            #TodoCall
@@ -3955,6 +3957,7 @@ PIVOT:                        P I V O T;
 PLAN:                         P L A N;
 PLS_INTEGER:                  P L S '_' I N T E G E R;
 PARTITIONS:                   P A R T I T I O N S;
+POSITION:                     P O S I T I O N;
 POSITIVE:                     P O S I T I V E;
 POSITIVEN:                    P O S I T I V E N;
 PRAGMA:                       P R A G M A;
