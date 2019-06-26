@@ -35,7 +35,16 @@ sql_script
     : ((unit_statement | sql_plus_command) (SEMICOLON (unit_statement | sql_plus_command ))* SEMICOLON?)? EOF
     ;
 
+// https://www.postgresql.org/docs/9.4/sql-explain.html
+sql_explain
+    : EXPLAIN (ANALYZE)? (VERBOSE)?
+    ;
+
 unit_statement
+    : (sql_explain)? unit_statement_body
+    ;
+
+unit_statement_body
     : alter_function
     | alter_package
     | alter_procedure
@@ -2191,7 +2200,7 @@ insert_into_clause
     ;
 
 values_clause
-    : VALUES expression_list
+    : VALUES expression_list (',' expression_list)*
     ;
 
 // $>
@@ -2406,6 +2415,7 @@ binary_expression
     | left=binary_expression op=('*' | '/' | '%') right=binary_expression            # BinaryExpr
     | left=binary_expression op=('+' | '-') right=binary_expression            # BinaryExpr
     | left=binary_expression op=CONCATENATION_OP right=binary_expression       # BinaryExpr
+    | left=binary_expression op='@@' right=binary_expression                   # BinaryExpr
     | '(' binary_expression ')'                                                # ParenBinaryExpr
     | unary_expression                                                         # IgnoreBinaryExpr
     ;
@@ -2537,10 +2547,11 @@ standard_function
     | COLLECT '(' (DISTINCT | UNIQUE)? concatenation collect_order_by_part? ')'                                 #TodoCall
     | name=within_or_over_clause_keyword function_argument within_or_over_part+                                 #WithinOrOverCall
     | DECOMPOSE '(' concatenation (CANONICAL | COMPATIBILITY)? ')'                                              #TodoCall
-    | name=EXTRACT '(' regular_id FROM concatenation ')'                                                        #ExtractCall
+    | name=EXTRACT '(' (regular_id | expression) FROM concatenation ')'                                         #ExtractCall
     | (FIRST_VALUE | LAST_VALUE) function_argument_analytic respect_or_ignore_nulls? over_clause                #TodoCall
     | standard_prediction_function_keyword
       '(' expression (',' expression)* cost_matrix_clause? using_clause? ')'                                    #TodoCall
+    | POSITION '(' expression IN expression ')'                                                                 #TodoCall
     | TRANSLATE '(' expression (USING (CHAR_CS | NCHAR_CS))? (',' expression)* ')'                              #TodoCall
     | TREAT '(' expression AS REF? type_spec ')'                                                                #TodoCall
     | TRIM '(' ((LEADING | TRAILING | BOTH)? quoted_string? FROM)? concatenation ')'                            #TodoCall
@@ -3520,6 +3531,7 @@ regular_id
     | VARIABLE
     | VARRAY
     | VARYING
+    | VERBOSE
     | VERSION
     | VERSIONS
     | WAIT
@@ -3955,6 +3967,7 @@ PIVOT:                        P I V O T;
 PLAN:                         P L A N;
 PLS_INTEGER:                  P L S '_' I N T E G E R;
 PARTITIONS:                   P A R T I T I O N S;
+POSITION:                     P O S I T I O N;
 POSITIVE:                     P O S I T I V E;
 POSITIVEN:                    P O S I T I V E N;
 PRAGMA:                       P R A G M A;
@@ -4122,6 +4135,7 @@ VARIABLE:                     V A R I A B L E;
 VARRAY:                       V A R R A Y;
 VARRAYS:                      V A R R A Y S;
 VARYING:                      V A R Y I N G;
+VERBOSE:                      V E R B O S E;
 VERSION:                      V E R S I O N;
 VERSIONS:                     V E R S I O N S;
 VIRTUAL:                      V I R T U A L;
