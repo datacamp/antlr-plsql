@@ -35,7 +35,16 @@ sql_script
     : ((unit_statement | sql_plus_command) (SEMICOLON (unit_statement | sql_plus_command ))* SEMICOLON?)? EOF
     ;
 
+// https://www.postgresql.org/docs/9.4/sql-explain.html
+sql_explain
+    : EXPLAIN (ANALYZE)? (VERBOSE)?
+    ;
+
 unit_statement
+    : (sql_explain)? unit_statement_body
+    ;
+
+unit_statement_body
     : alter_function
     | alter_package
     | alter_procedure
@@ -3522,6 +3531,7 @@ regular_id
     | VARIABLE
     | VARRAY
     | VARYING
+    | VERBOSE
     | VERSION
     | VERSIONS
     | WAIT
@@ -4125,6 +4135,7 @@ VARIABLE:                     V A R I A B L E;
 VARRAY:                       V A R R A Y;
 VARRAYS:                      V A R R A Y S;
 VARYING:                      V A R Y I N G;
+VERBOSE:                      V E R B O S E;
 VERSION:                      V E R S I O N;
 VERSIONS:                     V E R S I O N S;
 VIRTUAL:                      V I R T U A L;
