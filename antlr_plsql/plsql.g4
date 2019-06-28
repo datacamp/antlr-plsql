@@ -177,6 +177,7 @@ string_function
     | name=NVL '(' expression ',' expression ')'
     | name=TRIM '(' ((LEADING | TRAILING | BOTH)? quoted_string? FROM)? concatenation ')'
     | name=TO_DATE '(' expression (',' quoted_string)? ')'
+    | name=CONCAT '(' ( (quoted_string|expression) ',')+ (quoted_string|expression) ')'
     ;
 
 expressions
@@ -3177,6 +3178,7 @@ regular_id
     | COMPOUND
     //| CONNECT
     //| CONNECT_BY_ROOT
+    | CONCAT
     | CONSTANT
     | CONSTRAINT
     | CONSTRAINTS
@@ -3208,6 +3210,7 @@ regular_id
     | DEC
     | DECIMAL
     //| DECLARE
+    | DECODE
     | DECOMPOSE
     | DECREMENT
     //| DEFAULT
@@ -3369,6 +3372,7 @@ regular_id
     | NUMBER
     | NUMERIC
     | NVARCHAR2
+    | NVL
     | OBJECT
     //| OF
     | OFF
@@ -3484,6 +3488,7 @@ regular_id
     | SUBMULTISET
     | SUBPARTITION
     | SUBSTITUTABLE
+    | SUBSTRING
     | SUBTYPE
     | SUCCESS
     | SUSPEND
@@ -3501,6 +3506,8 @@ regular_id
     | TIMEZONE_MINUTE
     | TIMEZONE_REGION
     //| TO
+    | TO_CHAR
+    | TO_DATE
     | TRAILING
     | TRANSACTION
     | TRANSLATE
@@ -3673,6 +3680,7 @@ COMPATIBILITY:                C O M P A T I B I L I T Y;
 COMPILE:                      C O M P I L E;
 COMPOUND:                     C O M P O U N D;
 COMPRESS:                     C O M P R E S S;
+CONCAT:                       C O N C A T;
 CONNECT:                      C O N N E C T;
 CONNECT_BY_ROOT:              C O N N E C T '_' B Y '_' R O O T;
 CONSTANT:                     C O N S T A N T;
