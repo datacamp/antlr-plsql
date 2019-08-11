@@ -16,8 +16,9 @@ from antlr_ast.ast import (
     AntlrException as ParseError,
     dump_node,  # TODO only used in tests
 )
+from antlr_ast.inputstream import CaseTransformInputStream
 
-from . import grammar
+from antlr_plsql import grammar
 
 # AST -------------------------------------------------------------------------
 # TODO: Finish Unary+Binary Expr
@@ -25,7 +26,9 @@ from . import grammar
 
 
 def parse(sql_text, start="sql_script", **kwargs):
-    antlr_tree = parse_ast(grammar, sql_text, start, **kwargs)
+    antlr_tree = parse_ast(
+        grammar, sql_text, start, transform=CaseTransformInputStream.UPPER, **kwargs
+    )
     simple_tree = process_tree(
         antlr_tree, base_visitor_cls=AstVisitor, transformer_cls=Transformer
     )
@@ -583,7 +586,9 @@ Transformer.bind_alias_nodes(alias_nodes)
 
 # Create Speaker
 
-speaker_cfg = yaml.safe_load(pkg_resources.resource_stream("antlr_plsql", "speaker.yml"))
+speaker_cfg = yaml.safe_load(
+    pkg_resources.resource_stream("antlr_plsql", "speaker.yml")
+)
 speaker = Speaker(**speaker_cfg)
 
 
