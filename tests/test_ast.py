@@ -1,12 +1,15 @@
 import pytest
 import os
-from antlr_ast import AntlrException
+from antlr_ast.ast import AntlrException
 from antlr_plsql import ast
 
 
 def test_ast_parse_strict():
     with pytest.raises(AntlrException):
         ast.parse("SELECT x FROM ____", strict=True)  # ____ is ungrammatical
+    # Test export of exception class
+    with pytest.raises(ast.ParseError):
+        ast.parse("SELECT x FROM ____!", strict=True)  # ____! is ungrammatical
 
 
 def test_unparsed_to_text():
@@ -15,15 +18,15 @@ def test_unparsed_to_text():
     cursor = tree.body[0].target_list[0]
 
     assert isinstance(cursor, ast.UnaryExpr)
-    assert isinstance(cursor.expr, ast.Unshaped)
-    assert cursor._get_text(sql_txt) == "CURSOR (SELECT a FROM b)"
-    assert cursor.expr._get_text(sql_txt) == "(SELECT a FROM b)"
+    assert cursor.get_text(sql_txt) == "CURSOR (SELECT a FROM b)"
+    assert cursor.expr.get_text(sql_txt) == "SELECT a FROM b"
 
 
 def test_ast_dump():
     sql_txt = "SELECT a, b FROM x WHERE a < 10"
     tree = ast.parse(sql_txt)
-    tree._dump()
+    ast.dump_node(tree)
+    # TODO test .to_json()
 
 
 @pytest.mark.parametrize(
@@ -38,27 +41,35 @@ def test_ast_dump():
 )
 def test_ast_dumps_noerr(sql_text, start):
     tree = ast.parse(sql_text, start)
-    d = tree._dumps()
+    import json
+
+    d = json.dumps(ast.dump_node(tree))
+    # TODO test .to_json()
 
 
 def test_ast_dumps_unary():
     tree = ast.parse("-1", "unary_expression")
-    assert tree._dump() == {"type": "UnaryExpr", "data": {"expr": "1", "op": "-"}}
+    assert ast.dump_node(tree) == {
+        "type": "UnaryExpr",
+        "data": {"expr": "1", "op": "-"},
+    }
+    # TODO test .to_json()
 
 
 def test_select_fields_shaped():
     select = ast.parse(
         """
-    SELECT a,b 
-    FROM x,y 
+    SELECT a,b
+    FROM x,y
     GROUP BY a, b
     ORDER BY a, b
-    
+
     """,
         "subquery",
     )
-    for field in select._get_field_names():
-        assert not isinstance(getattr(select, field), ast.Unshaped)
+    for field in select._fields:
+        # TODO: update Unshaped test
+        pass
 
 
 @pytest.mark.parametrize(
@@ -72,7 +83,7 @@ def test_select_fields_shaped():
 )
 def test_inner_join(sql_text):
     tree = ast.parse(sql_text)
-    assert tree.body[0].from_clause.join_type == "inner"
+    assert tree.body[0].from_clause[0].join_type == "inner"
 
 
 @pytest.mark.parametrize(
@@ -86,7 +97,7 @@ def test_inner_join(sql_text):
 )
 def test_double_inner_join(sql_text):
     tree = ast.parse(sql_text)
-    frm = tree.body[0].from_clause
+    frm = tree.body[0].from_clause[0]
     assert frm.join_type == "right"
     assert frm.right.fields == ["i"]
     assert frm.left.join_type == "right"
@@ -105,12 +116,12 @@ def test_double_inner_join(sql_text):
 )
 def test_double_inner_join_with_aliases(sql_text):
     tree = ast.parse(sql_text)
-    frm = tree.body[0].from_clause
+    frm = tree.body[0].from_clause[0]
     assert frm.join_type == "right"
-    assert frm.right.arr[0].fields == ["i"]  # not good
+    assert frm.right.expr.fields == ["i"]
     assert frm.left.join_type == "right"
-    assert frm.left.left.arr[0].fields == ["d"]  # not good
-    assert frm.left.right.arr[0].fields == ["e"]  # not good
+    assert frm.left.left.expr.fields == ["d"]
+    assert frm.left.right.expr.fields == ["e"]
 
 
 def test_ast_select_paren():
@@ -122,7 +133,7 @@ def ast_examples_parse(fname):
     import yaml
 
     dirname = os.path.dirname(__file__)
-    data = yaml.load(open(dirname + "/" + fname))
+    data = yaml.safe_load(open(dirname + "/" + fname))
     res = {}
     for start, cmds in data["code"].items():
         res[start] = []
@@ -151,10 +162,11 @@ def test_ast_examples_parse(fname):
         "select \"Preserve\" from b WHERE b.name = 'Casing'",
     ],
 )
-def case_insensitivity(stu):
-    start = 'sql_script'
+def test_case_insensitivity(stu):
     lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
-    assert repr(ast.parse(lowercase, start, strict=True)) == repr(ast.parse(stu, start, strict=True))
+    assert repr(ast.parse(lowercase, strict=True)) == repr(
+        ast.parse(stu, strict=True)
+    )
 
 
 @pytest.mark.parametrize(
@@ -166,7 +178,8 @@ def case_insensitivity(stu):
         "select \"PRESERVE\" FROM B WHERE B.NAME = 'Casing'",
     ],
 )
-def case_sensitivity(stu):
-    start = 'sql_script'
+def test_case_sensitivity(stu):
     lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
-    assert repr(ast.parse(lowercase, start, strict=True)) != repr(ast.parse(stu, start, strict=True))
+    assert repr(ast.parse(lowercase, strict=True)) != repr(
+        ast.parse(stu, strict=True)
+    )
