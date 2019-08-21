@@ -51,7 +51,10 @@ def test_ast_dumps_unary():
     tree = ast.parse("-1", "unary_expression")
     assert ast.dump_node(tree) == {
         "type": "UnaryExpr",
-        "data": {"expr": "1", "op": "-"},
+        "data": {
+            "op": {"type": "Terminal", "data": {"value": "-"}},
+            "expr": {"type": "Terminal", "data": {"value": "1"}},
+        },
     }
     # TODO test .to_json()
 
@@ -164,9 +167,7 @@ def test_ast_examples_parse(fname):
 )
 def test_case_insensitivity(stu):
     lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
-    assert repr(ast.parse(lowercase, strict=True)) == repr(
-        ast.parse(stu, strict=True)
-    )
+    assert repr(ast.parse(lowercase, strict=True)) == repr(ast.parse(stu, strict=True))
 
 
 @pytest.mark.parametrize(
@@ -180,6 +181,4 @@ def test_case_insensitivity(stu):
 )
 def test_case_sensitivity(stu):
     lowercase = "select \"Preserve\" from b where b.name = 'Casing'"
-    assert repr(ast.parse(lowercase, strict=True)) != repr(
-        ast.parse(stu, strict=True)
-    )
+    assert repr(ast.parse(lowercase, strict=True)) != repr(ast.parse(stu, strict=True))
