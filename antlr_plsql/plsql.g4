@@ -63,6 +63,7 @@ unit_statement_body
     | create_view
 //  | create_directory //TODO
     | create_materialized_view
+    | refresh_materialized_view
 
     | create_sequence
     | create_trigger
@@ -76,6 +77,10 @@ unit_statement_body
     | drop_type
     | data_manipulation_language_statements
     | drop_table
+    ;
+
+refresh_materialized_view
+    : REFRESH MATERIALIZED VIEW tableview_name
     ;
 
 
