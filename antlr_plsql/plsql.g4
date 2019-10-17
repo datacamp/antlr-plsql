@@ -52,6 +52,7 @@ unit_statement_body
     | alter_trigger
     | alter_type
     | alter_table
+    | alter_permission
 
     | create_function_body
     | create_procedure_body
@@ -59,13 +60,15 @@ unit_statement_body
 
     | create_index
     | create_table
-//  | create_view //TODO
+    | create_view
 //  | create_directory //TODO
-//  | create_materialized_view //TODO
+    | create_materialized_view
+    | refresh_materialized_view
 
     | create_sequence
     | create_trigger
     | create_type
+    | create_role
 
     | drop_function
     | drop_package
@@ -75,6 +78,85 @@ unit_statement_body
     | drop_type
     | data_manipulation_language_statements
     | drop_table
+    ;
+
+create_role
+    : CREATE ROLE role_name (WITH? role_option+)?
+    ;
+
+role_option
+    : LOGIN
+    | CREATEDB
+    | CREATEROLE
+    ;
+
+refresh_materialized_view
+    : REFRESH MATERIALIZED VIEW tableview_name
+    ;
+
+
+create_materialized_view
+    : CREATE MATERIALIZED VIEW tableview_name
+      (OF type_name )?
+//scoped_table_ref and column alias goes here  TODO
+        ( ON PREBUILT TABLE ( (WITH | WITHOUT) REDUCED PRECISION)?
+        | physical_properties?  (CACHE | NOCACHE)? parallel_clause? build_clause?
+        )
+        ( USING INDEX ( (physical_attributes_clause | TABLESPACE mv_tablespace=id_expression)+ )*
+        | USING NO INDEX
+        )?
+        create_mv_refresh?
+        (FOR UPDATE)?
+        ( (DISABLE | ENABLE) QUERY REWRITE )?
+        AS subquery
+        ';'
+    ;
+
+create_mv_refresh
+    : ( NEVER REFRESH
+      | REFRESH
+         ( (FAST | COMPLETE | FORCE)
+         | ON (DEMAND | COMMIT)
+         | (START WITH | NEXT) //date goes here TODO
+         | WITH (PRIMARY KEY | ROWID)
+         | USING
+             ( DEFAULT (MASTER | LOCAL)? ROLLBACK SEGMENT
+             | (MASTER | LOCAL)? ROLLBACK SEGMENT rb_segment=REGULAR_ID
+             )
+         | USING (ENFORCED | TRUSTED) CONSTRAINTS
+         )+
+      )
+    ;
+
+build_clause
+    : BUILD (IMMEDIATE | DEFERRED)
+    ;
+
+alter_permission //https://www.postgresql.org/docs/9.5/sql-revoke.html
+    : REVOKE permission_options ON TABLE? tableview_name FROM GROUP? (PUBLIC | role_name)
+    | GRANT permission_options ON TABLE? tableview_name TO GROUP? (PUBLIC | role_name)
+    | GRANT role_name (',' role_name)* TO role_name (',' role_name)*
+    | REVOKE role_name (',' role_name)* FROM role_name (',' role_name)*
+    ;
+
+permission_options
+    : (','? (SELECT | INSERT | UPDATE | DELETE | TRUNCATE | REFERENCES | TRIGGER))+
+    ;
+
+create_view
+    : CREATE (OR REPLACE)? (OR? FORCE)? EDITIONING? VIEW
+      tableview_name view_options?
+      AS subquery subquery_restriction_clause?
+    ;
+
+view_options
+    :  view_alias_constraint
+//  | object_view_clause  // Available at https://github.com/antlr/grammars-v4/blob/master/plsql/PlSqlParser.g4
+//  | xmltype_view_clause //TODO
+    ;
+
+view_alias_constraint
+    : '(' ( ','? (table_alias inline_constraint* | out_of_line_constraint) )+ ')'
     ;
 
 create_index
@@ -322,6 +404,7 @@ bitmap_join_index_clause
 create_table
     : CREATE (GLOBAL? TEMPORARY)? TABLE tableview_name
         (relational_table | object_table | xmltype_table) (AS select_statement)?
+      (PARTITION OF tableview_name ((FOR VALUES IN '(' expression (',' expression)* ')')| DEFAULT) )?
     ;
 
 relational_table
@@ -346,7 +429,7 @@ relational_properties
 
 column_definition
     : column_name (datatype | type_name)
-         SORT?  (DEFAULT expression)? (ENCRYPT (USING  CHAR_STRING)? (IDENTIFIED BY regular_id)? CHAR_STRING? (NO? SALT)? )?  (inline_constraint* | inline_ref_constraint)
+         SORT?  (DEFAULT expression)? (ENCRYPT (USING  CHAR_STRING)? (IDENTIFIED BY regular_id)? CHAR_STRING? (NO? SALT)? )?  (inline_constraint* | inline_ref_constraint) (DEFAULT expression)?
     ;
 
 inline_ref_constraint
@@ -648,7 +731,7 @@ table_partition_description
 
 list_partitions
     : PARTITION BY LIST '(' column_name ')'
-        '(' (','? PARTITION partition_name? list_values_clause table_partition_description )+ ')'
+        ('(' (','? PARTITION partition_name? list_values_clause table_partition_description )+ ')')?
     ;
 
 list_values_clause
@@ -968,7 +1051,7 @@ add_modify_drop_column_clauses
     : (add_column_clause
       | modify_column_clauses
       | alter_column_clause
-      | drop_column_clause
+      | drop_column_clause (',' drop_column_clause)*
       )+
     ;
 
@@ -2907,6 +2990,10 @@ column_name
     : r_id ('.' id_expression)*
     ;
 
+role_name
+    : r_id
+    ;
+
 tableview_name
     // MC-NOTE: if tables are always of form x.y, may want to replace r_id
     //          official parser seems to put linking under expressions
@@ -3150,6 +3237,7 @@ regular_id
     | BOTH
     // | BREADTH
     | BULK
+    | BUILD
     // | BY
     | BYTE
     | C_LETTER
@@ -3175,6 +3263,7 @@ regular_id
     | COMMITTED
     | COMPATIBILITY
     | COMPILE
+    | COMPLETE
     | COMPOUND
     //| CONNECT
     //| CONNECT_BY_ROOT
@@ -3220,6 +3309,7 @@ regular_id
     // | DELETE
     // | DEPTH
     //| DESC
+    | DEMAND
     | DETERMINISTIC
     | DIMENSION
     | DISABLE
@@ -3230,6 +3320,7 @@ regular_id
     //| DROP
     | DSINTERVAL_UNCONSTRAINED
     | EACH
+    | EDITIONING
     | ELEMENT
     //| ELSE
     //| ELSIF
@@ -3237,6 +3328,7 @@ regular_id
     | ENABLE
     | ENCODING
     //| END
+    | ENFORCED
     | ENTITYESCAPING
     | ERR
     | ERRORS
@@ -3256,6 +3348,7 @@ regular_id
     | FAILURE
     //| FALSE
     //| FETCH
+    | FAST
     | FINAL
     | FIRST
     | FIRST_VALUE
@@ -3330,6 +3423,7 @@ regular_id
     | LOOP
     | MAIN
     | MAP
+    | MASTER
     | MATCHED
     | MAXVALUE
     | MEASURES
@@ -3353,6 +3447,7 @@ regular_id
     | NCHAR_CS
     | NCLOB
     | NESTED
+    | NEVER
     | NEW
     | NO
     | NOAUDIT
@@ -3373,6 +3468,7 @@ regular_id
     | NUMERIC
     | NVARCHAR2
     | NVL
+    | MATERIALIZED
     | OBJECT
     //| OF
     | OFF
@@ -3407,6 +3503,7 @@ regular_id
     | POSITIVE
     | POSITIVEN
     | PRAGMA
+    | PREBUILT
     | PRECEDING
     | PRECISION
     | PRESENT
@@ -3418,9 +3515,11 @@ regular_id
     | READ
     | REAL
     | RECORD
+    | REDUCED
     | REF
     | REFERENCE
     | REFERENCING
+    | REFRESH
     | REJECT
     | RELIES_ON
     | RENAME
@@ -3433,8 +3532,10 @@ regular_id
     | RETURNING
     | REUSE
     | REVERSE
+    | REWRITE
     //| REVOKE
     | RIGHT
+    | ROLE
     | ROLLBACK
     | ROLLUP
     | ROW
@@ -3516,6 +3617,7 @@ regular_id
     | TRIM
     //| TRUE
     | TRUNCATE
+    | TRUSTED
     | TYPE
     | UNBOUNDED
     | UNDER
@@ -3541,6 +3643,7 @@ regular_id
     | VERBOSE
     | VERSION
     | VERSIONS
+    | VIEW
     | WAIT
     | WARNING
     | WELLFORMED
@@ -3550,6 +3653,7 @@ regular_id
     | WHILE
     //| WITH
     | WITHIN
+    | WITHOUT
     | WORK
     | WRITE
     | XML
@@ -3577,6 +3681,7 @@ regular_id
     | PREDICTION_DETAILS
     | PREDICTION_PROBABILITY
     | PREDICTION_SET
+    | PUBLIC
     | CUME_DIST
     | DENSE_RANK
     | LISTAGG
@@ -3641,6 +3746,7 @@ BINARY_FLOAT:                 B I N A R Y '_' F L O A T;
 BINARY_INTEGER:               B I N A R Y '_' I N T E G E R;
 BITMAP:                       B I T M A P;
 BUFFER_POOL:                  B U F F E R '_' P O O L;
+BUILD:                        B U I L D;
 BLOB:                         B L O B;
 BLOCK:                        B L O C K;
 BODY:                         B O D Y;
@@ -3678,6 +3784,7 @@ COMMITTED:                    C O M M I T T E D;
 COMPACT:                      C O M P A C T;
 COMPATIBILITY:                C O M P A T I B I L I T Y;
 COMPILE:                      C O M P I L E;
+COMPLETE:                     C O M P L E T E;
 COMPOUND:                     C O M P O U N D;
 COMPRESS:                     C O M P R E S S;
 CONCAT:                       C O N C A T;
@@ -3696,6 +3803,8 @@ CORRUPT_XID_ALL:              C O R R U P T '_' X I D '_' A L L;
 COST:                         C O S T;
 COUNT:                        C O U N T;
 CREATE:                       C R E A T E;
+CREATEDB:                     C R E A T E D B;
+CREATEROLE:                   C R E A T E R O L E;
 CREATION:                     C R E A T I O N;
 CROSS:                        C R O S S;
 CUBE:                         C U B E;
@@ -3728,6 +3837,7 @@ DEFERRABLE:                   D E F E R R A B L E;
 DEFERRED:                     D E F E R R E D;
 DEFINER:                      D E F I N E R;
 DELETE:                       D E L E T E;
+DEMAND:                       D E M A N D;
 DEPTH:                        D E P T H;
 DESC:                         D E S C;
 DETERMINISTIC:                D E T E R M I N I S T I C;
@@ -3741,6 +3851,7 @@ DOUBLE:                       D O U B L E;
 DROP:                         D R O P;
 DSINTERVAL_UNCONSTRAINED:     D S I N T E R V A L '_' U N C O N S T R A I N E D;
 EACH:                         E A C H;
+EDITIONING:                   E D I T I O N I N G;
 ELEMENT:                      E L E M E N T;
 ELSE:                         E L S E;
 ELSIF:                        E L S I F;
@@ -3749,6 +3860,7 @@ ENABLE:                       E N A B L E;
 ENCODING:                     E N C O D I N G;
 ENCRYPT:                      E N C R Y P T;
 END:                          E N D;
+ENFORCED:                     E N F O R C E D;
 ENTITYESCAPING:               E N T I T Y E S C A P I N G;
 ERR:                          E R R;
 ERRORS:                       E R R O R S;
@@ -3769,6 +3881,7 @@ EXTERNAL:                     E X T E R N A L;
 EXTRACT:                      E X T R A C T;
 FAILURE:                      F A I L U R E;
 FALSE:                        F A L S E;
+FAST:                         F A S T;
 FETCH:                        F E T C H;
 FILESYSTEM_LIKE_LOGGING:      F I L E S Y S T E M '_' L I K E '_' L O G G I N G;
 FINAL:                        F I N A L;
@@ -3867,6 +3980,7 @@ LOCKED:                       L O C K E D;
 LOG:                          L O G;
 LOGGING:                      L O G G I N G;
 LOGOFF:                       L O G O F F;
+LOGIN:                        L O G I N;
 LOGON:                        L O G O N;
 LONG:                         L O N G;
 LOOP:                         L O O P;
@@ -3874,6 +3988,7 @@ LOW:                          L O W;
 MAIN:                         M A I N;
 MAP:                          M A P;
 MAPPING:                      M A P P I N G;
+MASTER:                       M A S T E R;
 MATCHED:                      M A T C H E D;
 MAXEXTENTS:                   M A X E X T E N T S;
 MAXVALUE:                     M A X V A L U E;
@@ -3902,6 +4017,7 @@ NCHAR:                        N C H A R;
 NCHAR_CS:                     N C H A R '_' C S;
 NCLOB:                        N C L O B;
 NESTED:                       N E S T E D;
+NEVER:                        N E V E R;
 NEW:                          N E W;
 NEXT:                         N E X T;
 NO:                           N O;
@@ -3933,6 +4049,7 @@ NULLS:                        N U L L S;
 NUMBER:                       N U M B E R;
 NUMERIC:                      N U M E R I C;
 NVARCHAR2:                    N V A R C H A R '2';
+MATERIALIZED:                 M A T E R I A L I Z E D;
 OBJECT:                       O B J E C T;
 OF:                           O F;
 OFF:                          O F F;
@@ -3979,6 +4096,7 @@ POSITION:                     P O S I T I O N;
 POSITIVE:                     P O S I T I V E;
 POSITIVEN:                    P O S I T I V E N;
 PRAGMA:                       P R A G M A;
+PREBUILT:                     P R E B U I L T;
 PRECEDING:                    P R E C E D I N G;
 PRECISION:                    P R E C I S I O N;
 PRESENT:                      P R E S E N T;
@@ -3986,6 +4104,7 @@ PRESERVE:                     P R E S E R V E;
 PRIMARY:                      P R I M A R Y;
 PRIOR:                        P R I O R;
 PROCEDURE:                    P R O C E D U R E;
+PUBLIC:                       P U B L I C;
 PURGE:                        P U R G E;
 QUERY:                        Q U E R Y;
 RAISE:                        R A I S E;
@@ -3998,10 +4117,12 @@ REBUILD:                      R E B U I L D;
 RECORD:                       R E C O R D;
 RECORDS_PER_BLOCK:            R E C O R D S '_' P E R '_' B L O C K;
 RECYCLE:                      R E C Y C L E;
+REDUCED:                      R E D U C E D;
 REF:                          R E F;
 REFERENCE:                    R E F E R E N C E;
 REFERENCES:                   R E F E R E N C E S;
 REFERENCING:                  R E F E R E N C I N G;
+REFRESH:                      R E F R E S H;
 REJECT:                       R E J E C T;
 REKEY:                        R E K E Y;
 RELATIONAL:                   R E L A T I O N A L;
@@ -4019,7 +4140,9 @@ RETURNING:                    R E T U R N I N G;
 REUSE:                        R E U S E;
 REVERSE:                      R E V E R S E;
 REVOKE:                       R E V O K E;
+REWRITE:                      R E W R I T E;
 RIGHT:                        R I G H T;
+ROLE:                         R O L E;
 ROLLBACK:                     R O L L B A C K;
 ROLLUP:                       R O L L U P;
 ROW:                          R O W;
@@ -4117,6 +4240,7 @@ TRIGGER:                      T R I G G E R;
 TRIM:                         T R I M;
 TRUE:                         T R U E;
 TRUNCATE:                     T R U N C A T E;
+TRUSTED:                      T R U S T E D;
 TYPE:                         T Y P E;
 UNBOUNDED:                    U N B O U N D E D;
 UNDER:                        U N D E R;
@@ -4146,6 +4270,7 @@ VARYING:                      V A R Y I N G;
 VERBOSE:                      V E R B O S E;
 VERSION:                      V E R S I O N;
 VERSIONS:                     V E R S I O N S;
+VIEW:                         V I E W;
 VIRTUAL:                      V I R T U A L;
 VISIBLE:                      V I S I B L E;
 WAIT:                         W A I T;
@@ -4156,6 +4281,7 @@ WHENEVER:                     W H E N E V E R;
 WHERE:                        W H E R E;
 WHILE:                        W H I L E;
 WITH:                         W I T H;
+WITHOUT:                      W I T H O U T;
 WITHIN:                       W I T H I N;
 WORK:                         W O R K;
 WRITE:                        W R I T E;
