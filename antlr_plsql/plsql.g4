@@ -52,6 +52,7 @@ unit_statement_body
     | alter_trigger
     | alter_type
     | alter_table
+    | alter_permission
 
     | create_function_body
     | create_procedure_body
@@ -75,6 +76,15 @@ unit_statement_body
     | drop_type
     | data_manipulation_language_statements
     | drop_table
+    ;
+
+alter_permission //https://www.postgresql.org/docs/9.5/sql-revoke.html
+    : REVOKE permission_options ON TABLE? tableview_name FROM GROUP? (PUBLIC | role_name)
+    | GRANT permission_options ON TABLE? tableview_name TO GROUP? (PUBLIC | role_name)
+    ;
+
+permission_options
+    : (','? (SELECT | INSERT | UPDATE | DELETE | TRUNCATE | REFERENCES | TRIGGER))+
     ;
 
 create_view
@@ -2923,6 +2933,10 @@ column_name
     : r_id ('.' id_expression)*
     ;
 
+role_name
+    : r_id
+    ;
+
 tableview_name
     // MC-NOTE: if tables are always of form x.y, may want to replace r_id
     //          official parser seems to put linking under expressions
@@ -3595,6 +3609,7 @@ regular_id
     | PREDICTION_DETAILS
     | PREDICTION_PROBABILITY
     | PREDICTION_SET
+    | PUBLIC
     | CUME_DIST
     | DENSE_RANK
     | LISTAGG
@@ -4005,6 +4020,7 @@ PRESERVE:                     P R E S E R V E;
 PRIMARY:                      P R I M A R Y;
 PRIOR:                        P R I O R;
 PROCEDURE:                    P R O C E D U R E;
+PUBLIC:                       P U B L I C;
 PURGE:                        P U R G E;
 QUERY:                        Q U E R Y;
 RAISE:                        R A I S E;
