@@ -68,6 +68,7 @@ unit_statement_body
     | create_sequence
     | create_trigger
     | create_type
+    | create_role
 
     | drop_function
     | drop_package
@@ -77,6 +78,16 @@ unit_statement_body
     | drop_type
     | data_manipulation_language_statements
     | drop_table
+    ;
+
+create_role
+    : CREATE ROLE role_name (WITH? role_option+)?
+    ;
+
+role_option
+    : LOGIN
+    | CREATEDB
+    | CREATEROLE
     ;
 
 refresh_materialized_view
@@ -124,6 +135,8 @@ build_clause
 alter_permission //https://www.postgresql.org/docs/9.5/sql-revoke.html
     : REVOKE permission_options ON TABLE? tableview_name FROM GROUP? (PUBLIC | role_name)
     | GRANT permission_options ON TABLE? tableview_name TO GROUP? (PUBLIC | role_name)
+    | GRANT role_name (',' role_name)* TO role_name (',' role_name)*
+    | REVOKE role_name (',' role_name)* FROM role_name (',' role_name)*
     ;
 
 permission_options
@@ -3522,6 +3535,7 @@ regular_id
     | REWRITE
     //| REVOKE
     | RIGHT
+    | ROLE
     | ROLLBACK
     | ROLLUP
     | ROW
@@ -3789,6 +3803,8 @@ CORRUPT_XID_ALL:              C O R R U P T '_' X I D '_' A L L;
 COST:                         C O S T;
 COUNT:                        C O U N T;
 CREATE:                       C R E A T E;
+CREATEDB:                     C R E A T E D B;
+CREATEROLE:                   C R E A T E R O L E;
 CREATION:                     C R E A T I O N;
 CROSS:                        C R O S S;
 CUBE:                         C U B E;
@@ -3964,6 +3980,7 @@ LOCKED:                       L O C K E D;
 LOG:                          L O G;
 LOGGING:                      L O G G I N G;
 LOGOFF:                       L O G O F F;
+LOGIN:                        L O G I N;
 LOGON:                        L O G O N;
 LONG:                         L O N G;
 LOOP:                         L O O P;
@@ -4125,6 +4142,7 @@ REVERSE:                      R E V E R S E;
 REVOKE:                       R E V O K E;
 REWRITE:                      R E W R I T E;
 RIGHT:                        R I G H T;
+ROLE:                         R O L E;
 ROLLBACK:                     R O L L B A C K;
 ROLLUP:                       R O L L U P;
 ROW:                          R O W;
