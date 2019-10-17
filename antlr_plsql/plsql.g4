@@ -59,7 +59,7 @@ unit_statement_body
 
     | create_index
     | create_table
-//  | create_view //TODO
+    | create_view
 //  | create_directory //TODO
 //  | create_materialized_view //TODO
 
@@ -75,6 +75,22 @@ unit_statement_body
     | drop_type
     | data_manipulation_language_statements
     | drop_table
+    ;
+
+create_view
+    : CREATE (OR REPLACE)? (OR? FORCE)? EDITIONING? VIEW
+      tableview_name view_options?
+      AS subquery subquery_restriction_clause?
+    ;
+
+view_options
+    :  view_alias_constraint
+//  | object_view_clause  // Available at https://github.com/antlr/grammars-v4/blob/master/plsql/PlSqlParser.g4
+//  | xmltype_view_clause //TODO
+    ;
+
+view_alias_constraint
+    : '(' ( ','? (table_alias inline_constraint* | out_of_line_constraint) )+ ')'
     ;
 
 create_index
@@ -3230,6 +3246,7 @@ regular_id
     //| DROP
     | DSINTERVAL_UNCONSTRAINED
     | EACH
+    | EDITIONING
     | ELEMENT
     //| ELSE
     //| ELSIF
@@ -3541,6 +3558,7 @@ regular_id
     | VERBOSE
     | VERSION
     | VERSIONS
+    | VIEW
     | WAIT
     | WARNING
     | WELLFORMED
@@ -3741,6 +3759,7 @@ DOUBLE:                       D O U B L E;
 DROP:                         D R O P;
 DSINTERVAL_UNCONSTRAINED:     D S I N T E R V A L '_' U N C O N S T R A I N E D;
 EACH:                         E A C H;
+EDITIONING:                   E D I T I O N I N G;
 ELEMENT:                      E L E M E N T;
 ELSE:                         E L S E;
 ELSIF:                        E L S I F;
@@ -4146,6 +4165,7 @@ VARYING:                      V A R Y I N G;
 VERBOSE:                      V E R B O S E;
 VERSION:                      V E R S I O N;
 VERSIONS:                     V E R S I O N S;
+VIEW:                         V I E W;
 VIRTUAL:                      V I R T U A L;
 VISIBLE:                      V I S I B L E;
 WAIT:                         W A I T;
