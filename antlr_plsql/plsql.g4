@@ -391,6 +391,7 @@ bitmap_join_index_clause
 create_table
     : CREATE (GLOBAL? TEMPORARY)? TABLE tableview_name
         (relational_table | object_table | xmltype_table) (AS select_statement)?
+      (PARTITION OF tableview_name ((FOR VALUES IN '(' expression (',' expression)* ')')| DEFAULT) )?
     ;
 
 relational_table
