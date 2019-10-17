@@ -968,7 +968,7 @@ add_modify_drop_column_clauses
     : (add_column_clause
       | modify_column_clauses
       | alter_column_clause
-      | drop_column_clause
+      | drop_column_clause (',' drop_column_clause)*
       )+
     ;
 
