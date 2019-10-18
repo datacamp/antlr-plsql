@@ -109,7 +109,6 @@ create_materialized_view
         (FOR UPDATE)?
         ( (DISABLE | ENABLE) QUERY REWRITE )?
         AS subquery
-        ';'
     ;
 
 create_mv_refresh
